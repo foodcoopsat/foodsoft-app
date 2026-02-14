@@ -1,0 +1,130 @@
+<?php
+
+require_once("html-helpers.php");
+
+class Order
+{
+    public $app;
+    public $data;
+    public $id;
+    public $sort_index;
+    public $is_group_order;
+
+    public $producer;
+    public $producer_notes;
+    public $is_stock_order;
+    public $parameters;
+
+    public $date_str;
+    // public $weeks_ago;
+    // public $week_class_str;
+    public $ordered_term;
+    public $info_text;
+    public $has_adaptable_weights;
+
+    public $articles;
+    public $n_articles;
+    public $article_comments;
+    public $state;
+    public $is_open;
+    public $is_closed;
+    public $date_end;
+    public $date_pickup;
+    public $has_pickup_date;
+    public $pickup_date_index;
+    public $datetime;
+    public $days_in_past;
+    public $days_in_future;
+    public $week;
+
+
+
+    public function __construct($app, $data)
+    {
+        $this->app = $app;
+        $this->data = $data;
+
+        $this->id = $data["id"];
+        $this->producer = $data["name"];
+
+        $this->state = $data["state"];
+        $this->is_open = $this->state == "open"; // Bestellungen noch möglich
+        $this->is_closed = $this->state == "closed"; // abgerechnet
+
+        $this->date_end = $data["ends"];
+        $this->date_pickup = $data["pickup"] ?? "";
+        $this->has_pickup_date = strlen($this->date_pickup) > 0;
+        $this->date_end = $this->app->loc_date($this->date_end); // 2021-12-01T16:30:00.000+01:00 => 01.12.2021
+        if ($this->has_pickup_date) {
+            $datetime = date_create($this->date_pickup);
+            $date_str = "Abholung ";
+        } else { // no pickupdate specified
+            $datetime = date_create($this->date_end);
+            $date_str = "Bestellende ";
+        }
+        $this->days_in_past = (int) ceil($this->app->days_ago($datetime));
+        $this->days_in_future = -$this->days_in_past;
+        $this->date_str = $date_str . $this->app->date_and_time_ago($datetime, $this->days_in_past);
+
+        $this->week = (int) floor($this->days_in_past / 7.0) + 1;
+        if (!$this->has_pickup_date)
+            $this->week -= 1; // pickup date could also be more than one week later - better always specify pickup date!
+        if ($this->week < 1)
+            $this->week = 1;
+        // week=1: from future back until 6 days in past
+        // week=2: from one week (7 days) ago until 13 days ago
+        // week=3: from two weeks (14 days) ago until 20 days ago ...
+
+        $this->sort_index = $this->is_open ? -999 : $this->days_in_past;
+
+        // parameters from producer notes
+        $this->producer_notes = $data["supplier_note"] ?? "";
+        $items = explode("@pickup:", $this->producer_notes);
+        $this->parameters = count($items) == 2 ? json_decode($items[1], true) : [];
+        $this->has_adaptable_weights = $this->parameters["adaptable_weights"] ?? true;
+        //!producer_setting($producer, "ignore-weight");
+        $this->info_text = $this->parameters["info_text"] ?? "";
+        $this->ordered_term = $this->parameters["ordered"] ?? "bestellt";
+        $this->is_stock_order = $this->producer == "Lager";
+
+        $this->articles = $this->data["articles"] ?? [];
+        $this->n_articles = count($this->articles);
+
+        $this->article_comments = [];
+        foreach ($data["comments"] ?? [] as $comment) {
+            foreach (explode("\n", $comment["order_comment"]["text"]) as $comment_line) {
+
+                // --- begin remove
+                $items = explode("#", $comment_line);
+                // "Artikelname... @ Kommentar ... #1234567" =>  ["Artikelname: Kommentar ... ", "1234567"]
+                if (count($items) > 1) {
+                    $article_id = $items[1];
+                    $this->article_comments[$article_id] = explode("@ ", $items[0])[1];
+                    continue;
+                }
+                // --- end remove
+
+                // neu: ... @123456 Kommentar zum Artikel-1 @1234599 Kommentar zum Artikel-2 ...
+                // in einer Zeile eigentlich nur 1 Artikel und ein Kommentar dazu!
+                $items = explode("@", $comment_line);
+                foreach (array_slice($items, 1) as $item) {
+                    $end_of_id = strpos($item, " ");
+                    $article_id = substr($item, 0, $end_of_id);
+                    $this->article_comments[$article_id] = substr($item, $end_of_id + 1);
+                }
+            }
+        }
+    }
+
+    public function var_name($var)
+    {
+        return $var . "[" . $this->id . "]";
+    }
+    public function html_hidden_input($varname, $value)
+    {
+        $varname = $this->var_name($varname);
+        print "<input type='hidden' name='$varname' value='$value'>\n";
+    }
+
+}
+?>
