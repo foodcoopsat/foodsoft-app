@@ -54,14 +54,14 @@ class FoodsoftApp
         $this->post = $_POST;
         if ($this->was_ordergroup_selected = key_exists("username", $this->post)) {
             $items = explode($this->user_str_separator, $this->post["username"]);
-            if (count($items) > 1) {
+            if (count($items) > 1) { // from user selection dropdown
                 $this->username = $items[0];
                 $this->ordergroup_id = $items[1];
                 $this->ordergroup = $items[2];
-            } else {
-                $this->username = $this->post["username"];
-                // $this->ordergroup_id = ;
-                $this->ordergroup = $this->post["ordergroup"];
+            } else { // from hidden input after form submission
+                $this->username = $this->post["username"] ?? $_GET["username"];
+                $this->ordergroup_id = $this->post["ordergroup_id"] ?? $_GET["ordergroup_id"];
+                $this->ordergroup = $this->post["ordergroup"] ?? $_GET["ordergroup"];
             }
         } else {
             $this->username = null;
@@ -239,6 +239,11 @@ class FoodsoftApp
         $path = $this->protocoll_filename();
         $dir = dirname($path);
         if (!is_dir($dir)) {
+            print html_tag(
+                "p",
+                ["class" => "info"],
+                "Protokoll-Verzeichnis existiert noch nicht, erstelle Verzeichnis '$dir'..."
+            );
             mkdir($dir, 0777, true);
         }
         $file = fopen($path, "a");

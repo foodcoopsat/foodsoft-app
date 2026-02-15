@@ -9,13 +9,16 @@ require_once("article-submit.php");
 
 class PickupApp extends FoodsoftApiApp
 {
+
+    public $login_user;
     public $credit;
     public $n_pickedup_initially = 0;
     public $articles_not_pickedup = [];
     public $protocoll = [];
     public $table_headers = [
         "date" => "Datum",
-        "username" => "Benutzer*in",
+        #"username" => "Benutzer*in",
+        "login_user" => "Benutzer*in Anmeldung",
         "realname" => "Name",
         "ordergroup" => "Bestellgruppe",
         "producer" => "Produzent*in",
@@ -42,9 +45,6 @@ class PickupApp extends FoodsoftApiApp
 
     public function __construct($config)
     {
-
-
-
         parent::__construct($config);
 
         if ($this->action == "protocoll") {
@@ -59,12 +59,11 @@ class PickupApp extends FoodsoftApiApp
             exit();
         }
 
-
-
         $this->title = "Abholen";
 
         if ($this->action == "") {
             if ($this->has_current_user_ordergroup()) {
+                $this->login_user = $this->post["login_user"] ?? $this->username;
                 $this->html_header([
                     "../pickup.js",
                     "../input.js",
@@ -79,9 +78,11 @@ class PickupApp extends FoodsoftApiApp
                 $this->html_title();
                 $this->html_form_begin("");
                 $this->html_select_user("Abholer*in", true);
+                print html_hidden_input("login_user", $this->username);
                 $this->html_form_end("Weiter");
             }
         } elseif ($this->action == "submit") {
+            $this->login_user = $this->post["login_user"];
             $this->html_header();
             $this->html_title();
             $this->html_submit();
@@ -150,6 +151,8 @@ class PickupApp extends FoodsoftApiApp
         );
         print html_hidden_input("username", $this->username);
         print html_hidden_input("ordergroup", $this->ordergroup);
+        print html_hidden_input("ordergroup_id", $this->ordergroup_id);
+        print html_hidden_input("login_user", $this->login_user);
         print "</p>";
 
         // print "      <p class='info'>Wenn du nicht $this->username bist, gib bitte zumindest deinen Vornamen ein. 
@@ -231,13 +234,6 @@ class PickupApp extends FoodsoftApiApp
                     $article->has_changed("received", 2) &&
                     !$article->is_different("weight_received", "weight_ordered", 0)
                 ) {
-                    print "<pre>";
-                    print "article " . $article->name . ": ";
-                    print "received changed => " . ($article->has_changed("received", 2) ? "true" : "false") . ", ";
-                    print $article->get("received_initial") . " => " . $article->get("received") . ", ";
-                    print "weight_received changed => " . ($article->has_changed("weight_received", 0) ? "true" : "false");
-                    print "\n</pre>";
-
                     $article->update_received();
                     $article->add_note_received();
                 }
@@ -293,7 +289,16 @@ class PickupApp extends FoodsoftApiApp
 
         $this->save_protocoll();
 
-        print '<div style="float:left"><button onclick="history.back(1)">Zurück</button></div>';
+        $query = http_build_query([
+            "app" => $this->app_name,
+            "action" => "",
+            "username" => $this->username,
+            "ordergroup" => $this->ordergroup,
+            "ordergroup_id" => $this->ordergroup_id,
+            "login_user" => $this->login_user,
+            "access_token" => $this->api->access_token,
+        ]);
+        print '<div style="float:left"><a href="?' . $query . '"><button>Zurück</button></a></div>';
         print '<div style="float:right"><a href="?"><button>Fertig</button></a></div>';
         print '<div style="clear:both"></div>';
 
@@ -316,7 +321,8 @@ class PickupApp extends FoodsoftApiApp
         // if no article is given, return the keys and default values for empty protocoll entries
         return [
             "date" => date("Y-m-d H:i:s"),
-            "username" => $this->username,
+            #"username" => $this->username,
+            "login_user" => $this->login_user,
             "realname" => $this->realname,
             "ordergroup" => $this->ordergroup,
             "producer" => $article->order->producer ?? "",
