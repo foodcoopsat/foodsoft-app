@@ -165,10 +165,6 @@ class ArticlePickup extends Article
             print "Gewicht bestellt: " . $this->weight_ordered . " Gramm ";
         }
         print html_button("abweichendes Gewicht eingeben", $button_id, $on_click);
-        // print '<button type="button" ' .
-        //     ' onclick="' . $on_click . '" ' .
-        //     "id='$button_id'>" .
-        //     'Abweichendes Gewicht eingeben</button>';
         print "<br></span>";
         $this->html_weight_input("display:none");
     }

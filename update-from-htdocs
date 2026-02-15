@@ -1,0 +1,6 @@
+rsync -av --progress --exclude 'fonts' --exclude 'franckkistl'  ../htdocs/pickup/foodcoopsat/ pickup/
+echo git status
+echo git diff
+echo git add .
+echo git commit -m "Update files after local changes"
+echo git push

@@ -29,17 +29,6 @@ class ArticleSubmitted extends Article
 
         $this->single_weights = $this->get("single_weight") ?: [];
         $this->note_items = [];
-
-
-
-        // "price" => $article->price ?? 0.,
-        // "ordered" => $article->ordered ?? 0,
-        // "received_initial" => $article ? $article->get("received_initial") : 0,
-        // "received" => $article->received ?? 0,
-        // "weight_ordered" => $article->weight_ordered ?? 0,
-        // "weight_received_initial" => $article ? $article->get("weight_received_initial") : 0,
-        // "weight_received" => $article->weight_received ?? 0,
-        // "single_weights" => $article->single_weights ?? [],
     }
 
     public function get($property)
