@@ -5,15 +5,23 @@ require_once("api-client.php");
 
 class FoodsoftApiApp extends FoodsoftApp
 {
-    public $api; // for API connection
+    public $api = null; // for API connection
     public $api_url = "/pickup";
-    public function __construct($config)
+
+    public function needs_api()
+    {
+        // can be overridden by subclasses if they don't need an API connection 
+        // under certain conditions (e.g. for a specific action)
+        return true;
+    }
+    public function __construct($config, $need_api = true)
     {
         parent::__construct($config);
 
-        $this->api = new ApiClient($config);
-
-        $this->foodcoop_name = $this->api->foodcoop_name;
+        if ($this->needs_api()) {
+            $this->api = new ApiClient($config);
+            $this->foodcoop_name = $this->api->foodcoop_name;
+        }
 
         if ($config["debug"] ?? false) {
             print "<pre style='background-color: #EEE;'>";

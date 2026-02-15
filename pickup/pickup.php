@@ -13,28 +13,70 @@ class PickupApp extends FoodsoftApiApp
     public $n_pickedup_initially = 0;
     public $articles_not_pickedup = [];
     public $protocoll = [];
-    public function __construct($config, $need_api = true)
+    public $table_headers = [
+        "date" => "Datum",
+        "username" => "Benutzer*in",
+        "realname" => "Name",
+        "ordergroup" => "Bestellgruppe",
+        "producer" => "Produzent*in",
+        "order_date" => "Bestelldatum",
+        # "id" => "Artikel-ID",
+        "name" => "Artikelname",
+        "unit" => "Einheit",
+        "price" => "€/Einheit",
+        "price_diff" => "€ Differenz",
+        "ordered" => "bestellt",
+        "received_initial" => "urspr.",
+        "received" => "erhalten",
+        "weight_ordered" => "Gramm bestellt",
+        "weight_received_initial" => "urspr.",
+        "weight_received" => "erhalten",
+        "single_weights" => "Einzelgewichte",
+        "note" => "Notiz"
+    ];
+
+    public function needs_api()
     {
-        if ($need_api) {
-            parent::__construct($config);
-        } else {
-            $this->config = $config;
+        return !in_array($this->action, ["protocoll"]);
+    }
+
+    public function __construct($config)
+    {
+
+
+
+        parent::__construct($config);
+
+        if ($this->action == "protocoll") {
+            $this->title = "Protokoll Abholen";
+            $this->html_header();
+            $this->html_title();
+            $this->load_protocoll(5); // load protocoll of the last 5 weeks
+            $this->generate_table_from_protocoll();
+            $this->sort_table("date", "desc");
+            $this->html_table($this->table, $this->table_headers);
+            $this->html_footer();
+            exit();
         }
+
+
 
         $this->title = "Abholen";
 
         if ($this->action == "") {
-            $this->html_header([
-                "pickup.js",
-                "input.js",
-            ], [
-                "onload" => "init()",
-                "onbeforeunload" => "return before_unload()",
-            ]);
-            $this->html_title();
             if ($this->has_current_user_ordergroup()) {
+                $this->html_header([
+                    "../pickup.js",
+                    "../input.js",
+                ], [
+                    "onload" => "init()",
+                    "onbeforeunload" => "return before_unload()",
+                ]);
+                $this->html_title();
                 $this->html_pickup_form();
             } else {
+                $this->html_header();
+                $this->html_title();
                 $this->html_form_begin("");
                 $this->html_select_user("Abholer*in", true);
                 $this->html_form_end("Weiter");
@@ -53,6 +95,8 @@ class PickupApp extends FoodsoftApiApp
 
         $this->html_footer();
     }
+
+
     public function get_foodsoft_group_orders($ordergroup_id = null)
     {
         $url = $this->api_url;
@@ -187,6 +231,13 @@ class PickupApp extends FoodsoftApiApp
                     $article->has_changed("received", 2) &&
                     !$article->is_different("weight_received", "weight_ordered", 0)
                 ) {
+                    print "<pre>";
+                    print "article " . $article->name . ": ";
+                    print "received changed => " . ($article->has_changed("received", 2) ? "true" : "false") . ", ";
+                    print $article->get("received_initial") . " => " . $article->get("received") . ", ";
+                    print "weight_received changed => " . ($article->has_changed("weight_received", 0) ? "true" : "false");
+                    print "\n</pre>";
+
                     $article->update_received();
                     $article->add_note_received();
                 }
@@ -240,8 +291,10 @@ class PickupApp extends FoodsoftApiApp
 
         print implode("\n", $html);
 
+        $this->save_protocoll();
+
         print '<div style="float:left"><button onclick="history.back(1)">Zurück</button></div>';
-        print '<div style="float:right"><a href="login.php"><button>Fertig</button></a></div>';
+        print '<div style="float:right"><a href="?"><button>Fertig</button></a></div>';
         print '<div style="clear:both"></div>';
 
     }
@@ -258,39 +311,63 @@ class PickupApp extends FoodsoftApiApp
 
     // ==== protocoll =========================================================
 
+    public function protocoll_array($article = null)
+    {
+        // if no article is given, return the keys and default values for empty protocoll entries
+        return [
+            "date" => date("Y-m-d H:i:s"),
+            "username" => $this->username,
+            "realname" => $this->realname,
+            "ordergroup" => $this->ordergroup,
+            "producer" => $article->order->producer ?? "",
+            "order_date" => $article->order->date_end ?? "",
+            "id" => $article->id ?? "",
+            "name" => $article->name ?? "",
+            "unit" => $article->unit ?? "",
+            "price" => $article->price ?? 0.,
+            "ordered" => $article->ordered ?? 0,
+            "received_initial" => $article ? floatval($article->get("received_initial")) : 0,
+            "received" => $article->received ?? 0,
+            "weight_ordered" => $article->weight_ordered ?? 0,
+            "weight_received_initial" => $article ? floatval($article->get("weight_received_initial")) : 0,
+            "weight_received" => $article->weight_received ?? 0,
+            "single_weights" => $article->single_weights ?? [],
+            "note" => $article ? $article->get("note") : "",
+        ];
+    }
     public function add_to_protocoll($article)
     {
-        if ($article->updates || $article->has_changed("note")) {
-            $this->protocoll[] = [
-                "username" => $this->username,
-                "realname" => $this->realname,
-                "ordergroup" => $this->ordergroup,
-                "producer" => $article->order->producer,
-                "order_date" => $article->order->date_end,
-                "id" => $article->id,
-                "name" => $article->name,
-                "unit" => $article->unit,
-                "price" => $article->price,
-                "ordered" => $article->ordered,
-                "received_initial" => $article->get("received_initial"),
-                "received" => $article->received,
-                "weight_ordered" => $article->weight_ordered,
-                "weight_received_initial" => $article->get("weight_received_initial"),
-                "weight_received" => $article->weight_received,
-                "single_weights" => $article->single_weights,
-                "note" => $article->get("note"),
-            ];
+        if (array_filter($article->update) || $article->has_changed("note")) {
+            // print "<pre>";
+            // print $article->name . ": ";
+            // print "note changed => " . ($article->has_changed("note") ? "true" : "false") . ", ";
+            // print "update => " . ($article->update ? "true" : "false") . ", ";
+            // var_dump($article->update);
+            // print "</pre>";
+            $this->protocoll[] = $this->protocoll_array($article);
         }
     }
 
 
     public function protocoll_filename($week = 0)
     {
-        return "protocolls/pickup/" .
+        return "pickup/protocolls/" .
             date("Y-W", strtotime("-$week weeks")) .
             ".txt";
     }
 
+    public function generate_table_from_protocoll()
+    {
+        parent::generate_table_from_protocoll();
+        foreach ($this->table as $i => $row) {
+            $this->table[$i]["price_diff"] = ($row["received"] - $row["ordered"]) * $row["price"];
+            if ($row["weight_ordered"] == 0) {
+                $this->table[$i]["weight_ordered"] = "";
+                $this->table[$i]["weight_received"] = "";
+                $this->table[$i]["weight_received_initial"] = "";
+            }
+        }
+    }
 }
 
 ?>

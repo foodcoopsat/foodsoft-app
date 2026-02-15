@@ -27,6 +27,9 @@ class FoodsoftApp
     public $base_distribution = 10000;
     public $base_pickedup = 1000;
     public $protocoll = [];
+    public $table_default_values = [];
+    public $table_keys = [];
+    public $table = [];
     public $debug;
 
 
@@ -63,6 +66,9 @@ class FoodsoftApp
         } else {
             $this->username = null;
         }
+
+        #ini_set("precision", 14);
+        ini_set("serialize_precision", 14);
     }
 
     public function html_header($js_scriptfiles = [], $js_body_functions = [])
@@ -160,7 +166,39 @@ class FoodsoftApp
         print "<small>Die Auswahlliste enthält $n_users Einträge.</small></p>";
         return false;
     }
-
+    public function html_table($table, $headers)
+    {
+        $html = "<table>\n";
+        $html .= "  <tr><th>" . implode("</th><th>", array_values($headers)) . "</th></tr>\n";
+        foreach ($table as $row) {
+            $html .= "  <tr>";
+            foreach (array_keys($headers) as $key) {
+                $data = $row[$key] ?? "";
+                $align = "left";
+                if (is_array($data)) {
+                    $data = implode(", ", array_filter($data));
+                } elseif (is_numeric($data)) {
+                    $align = "right";
+                    if (str_contains($key, "weight")) {
+                        $data = sprintf("%.0f", $data);
+                    } elseif (str_contains($key, "price")) {
+                        $data = $this->local_currency_str(
+                            $data,
+                            str_contains($key, "diff")
+                        );
+                    } elseif (is_int($data) || $key == "id") {
+                        $data = sprintf("%d", $data);
+                    } else {
+                        $data = $this->loc_floatstr(sprintf("%.2f", $data));
+                    }
+                }
+                $html .= "    <td align='$align'>" . $data . "</td>";
+            }
+            $html .= "</tr>\n";
+        }
+        $html .= "</table>\n";
+        print $html;
+    }
     public function get_foodsoft_users($skip_users_without_ordergroup)
     {
         // to be overwritten by inherited class if needed
@@ -184,14 +222,26 @@ class FoodsoftApp
 
     public function protocoll_filename($week = 0)
     {
-        return $this->foodcoop_dirname . "/protocolls/" . $this->app_name . "/" .
+        return $this->foodcoop_dirname . "/data/" . $this->app_name . "/protocolls/" .
             date("Y-W", strtotime("-$week weeks")) .
             ".txt";
     }
 
+    public function protocoll_array($article = null)
+    {
+        // to be overwritten by inherited class 
+        return [];
+    }
+
+
     public function save_protocoll()
     {
-        $file = fopen($this->protocoll_filename(), "a");
+        $path = $this->protocoll_filename();
+        $dir = dirname($path);
+        if (!is_dir($dir)) {
+            mkdir($dir, 0777, true);
+        }
+        $file = fopen($path, "a");
         $n_tries = 0;
         while (!flock($file, LOCK_EX)) {
             usleep(100000); // Wait 100ms before retrying
@@ -213,14 +263,21 @@ class FoodsoftApp
     public function load_protocoll_week($week)
     {
         $filename = $this->protocoll_filename($week);
+        $protocoll = [];
+        # print "Loading protocoll from file: $filename";
         if (file_exists($filename)) {
             $file = fopen($filename, "r");
             while (($line = fgets($file)) !== false) {
-                $this->protocoll[] = json_decode($line, true);
+                $protocoll[] = json_decode($line, true);
             }
             fclose($file);
+        } else {
+            # print " (file does not exist yet)";
         }
+        # print "\n";
+        return $protocoll;
     }
+
 
     public function load_protocoll($n_weeks)
     {
@@ -230,6 +287,20 @@ class FoodsoftApp
         }
     }
 
+    public function generate_table_from_protocoll()
+    {
+        $this->table_default_values = $this->protocoll_array();
+        $this->table_keys = array_keys($this->table_default_values);
+        $this->table = $this->protocoll;
+    }
+
+    public function sort_table($sort_by, $order = "asc")
+    {
+        // sort the data table by the given column name
+        $sort_values = array_column($this->table, $sort_by);
+        $sort_order = $order == "desc" ? SORT_DESC : SORT_ASC;
+        array_multisort($sort_values, $sort_order, $this->table);
+    }
 
 
     // --- local functions --------------------------------

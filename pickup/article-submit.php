@@ -13,13 +13,33 @@ class ArticleSubmitted extends Article
         $this->id = $id;
         $this->name = $this->get("article_name");
         $this->has_variable_weight = $this->get("has_variable_weight");
-        $this->ordered = $this->get("ordered");
+        $this->ordered = floatval($this->get("ordered"));
         $this->received = $this->get("received");
         if ($this->received === null) {
             $this->received = $this->ordered;
+        } else {
+            $this->received = floatval($this->received);
         }
+        $this->unit = $this->get("unit");
+        $this->unit_weight = floatval($this->get("unit_weight"));
+        $this->price = floatval($this->get("price"));
+
+        $this->weight_ordered = floatval($this->get("weight_ordered"));
+        $this->weight_received = floatval($this->get("weight_received"));
+
         $this->single_weights = $this->get("single_weight") ?: [];
         $this->note_items = [];
+
+
+
+        // "price" => $article->price ?? 0.,
+        // "ordered" => $article->ordered ?? 0,
+        // "received_initial" => $article ? $article->get("received_initial") : 0,
+        // "received" => $article->received ?? 0,
+        // "weight_ordered" => $article->weight_ordered ?? 0,
+        // "weight_received_initial" => $article ? $article->get("weight_received_initial") : 0,
+        // "weight_received" => $article->weight_received ?? 0,
+        // "single_weights" => $article->single_weights ?? [],
     }
 
     public function get($property)
@@ -55,14 +75,17 @@ class ArticleSubmitted extends Article
     {
         $id = $this->id;
         $post = $this->app->post;
+        if (!isset($post[$property1][$id]) || !isset($post[$property2][$id])) {
+            return false; // if one of the values is not set, we consider it as not different
+        }
+        $value1 = $post[$property1][$id];
+        $value2 = $post[$property2][$id];
         if ($digits === null) {
-            return
-                ($post[$property1][$id] ?? 0) !=
-                ($post[$property2][$id] ?? 0);
+            return $value1 != $value2;
         } else {
-            return abs(round($post[$property1][$id] ?? 0, $digits) -
-                round($post[$property2][$id] ?? 0, $digits)) >
-                pow(10, -$digits);
+            $difference = abs(round($value1, $digits) - round($value2, $digits));
+            $tolerance = pow(10, -$digits);
+            return $difference > $tolerance;
         }
     }
     public function is_equal($property1, $property2, $digits = null)
@@ -126,6 +149,13 @@ class ArticleSubmitted extends Article
 
     private function has_notes()
     {
+        // if (count($this->note_items) > 0) {
+        //     print "<pre>";
+        //     print "note items for article $this->id: ";
+        //     print_r($this->note_items);
+        //     print "</pre>";
+        // }
+
         return count($this->note_items) > 0;
     }
     public function add_note_for_article()

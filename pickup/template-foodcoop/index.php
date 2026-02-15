@@ -7,8 +7,8 @@ $config = [
     // Einrichten:  https://app.foodcoops.at/.../oauth/applications
     // Callback URL: https://pickup.foodcoops.at/.../
     // Client (application) credentials von dort: 
-    "client_id" => "...",
-    "client_secret" => "...",
+    "client_id" => "",
+    "client_secret" => "",
 
     "exclude_usernames" => [
         "Bestellungen",

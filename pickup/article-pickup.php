@@ -58,13 +58,15 @@ class ArticlePickup extends Article
         $classes = ["checkbox"];
         if ($this->order->ready_for_pickup)
             $classes[] = "ready-for-pickup";
-        print "<input type='checkbox' " .
-            " class='" . implode(" ", $classes) . "' " .
-            " name='checked[]' " .
-            " id='checkbox-" . $this->id . "' " .
-            " value='" . $this->id . "' " .
-            " onChange='update_article_visibility(" . $this->id . ");' " .
-            ($this->is_checked ? " checked" : "") . ">";
+        print html_tag("input", [
+            "type" => "checkbox",
+            "class" => $classes,
+            "name" => "checked[]",
+            "id" => "checkbox-" . $this->id,
+            "value" => $this->id,
+            "onChange" => "update_article_visibility(" . $this->id . ")",
+            ($this->is_checked ? "checked" : ""),
+        ]);
         if ($this->is_checked) {
             print " <input type='hidden' name='checked_initial[]' value='" . $this->id . "'>\n";
         }
@@ -93,6 +95,7 @@ class ArticlePickup extends Article
         ) {
             print " (" . $this->app->local_currency_str($this->price_per_kg) . "/kg)";
         }
+        $this->html_hidden_input("unit", $this->unit);
         $this->html_hidden_input("unit_weight", $this->unit_weight);
         $this->html_hidden_input("price", $this->price);
     }
@@ -102,10 +105,15 @@ class ArticlePickup extends Article
         print $this->order->ordered_term . ": " . $this->ordered;
         $this->html_hidden_input("ordered", $this->ordered);
         $this->html_hidden_input("tolerance", $this->tolerance);
+        if ($this->unit_weight > 0) {
+            $this->html_hidden_input("weight_ordered", $this->weight_ordered);
+        }
     }
 
     private function html_received()
     {
+        $this->html_hidden_input("received_initial", $this->received);
+
         if ($this->order->is_open)
             return; // no adaptions for open orders
 
@@ -131,6 +139,11 @@ class ArticlePickup extends Article
                 $this->html_optional_weight_input();
             }
         }
+
+        if ($this->unit_weight > 0) {
+            $this->html_hidden_input("weight_received_initial", $this->weight_received);
+        }
+
         // todo: warning if pickup is in future
     }
 
@@ -151,10 +164,11 @@ class ArticlePickup extends Article
         } else {
             print "Gewicht bestellt: " . $this->weight_ordered . " Gramm ";
         }
-        print '<button type="button" ' .
-            ' onclick="' . $on_click . '" ' .
-            "id=' $button_id'>" .
-            'Abweichendes Gewicht eingeben</button>';
+        print html_button("abweichendes Gewicht eingeben", $button_id, $on_click);
+        // print '<button type="button" ' .
+        //     ' onclick="' . $on_click . '" ' .
+        //     "id='$button_id'>" .
+        //     'Abweichendes Gewicht eingeben</button>';
         print "<br></span>";
         $this->html_weight_input("display:none");
     }
@@ -174,9 +188,7 @@ class ArticlePickup extends Article
         $input->set_article_name(sprintf("%s", $this->name));
         //$input->set_buttons_on_both_sides();
         $input->print();
-        $this->html_hidden_input("unit_weight", $this->unit_weight);
-        $this->html_hidden_input("weight_received_initial", $this->weight_received);
-        $this->html_hidden_input("weight_ordered", $this->weight_ordered);
+
 
         if ($this->ordered > 1 && $this->has_variable_weight) {
             print '<br><span id="weight-separated-' . $this->id . '">' .
@@ -209,7 +221,6 @@ class ArticlePickup extends Article
         $input->set_article_name(sprintf("%d x %s", $this->reset_received, $this->name));
         //$input->set_buttons_on_both_sides();
         $input->print();
-        $this->html_hidden_input("received_initial", $this->received);
     }
 
     private function html_note()

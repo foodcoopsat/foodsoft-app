@@ -33,9 +33,26 @@ function html_list($items, $ordered = false)
         "</li></$list_type>";
 }
 
-function html_attribute($name, $value)
+
+
+function html_attribute($name, $value = "")
 {
-    return " $name='$value'";
+    if (is_array($value)) { // ["attr.name" => ["value1", "value2"]]
+        return " $name='" . implode(" ", $value) . "'";
+    } elseif (is_string($name) && $value !== "") { // ["attr.name" => "value"] 
+        if (str_contains($value, '"') && str_contains($value, "'")) {
+            error_log("Value for HTML attribute $name = $value contains both single and double quotes, " .
+                "which is not supported.");
+            return "";
+        } elseif (str_contains($value, "'")) {
+            return " $name=\"$value\"";
+        } else {
+            return " $name='$value'";
+        }
+    } elseif ($value) // ["attr.name"] withut value gives $name=index, $value="attr.name", like e.g. "checked" in <input type="checkbox" checked>
+        return " $value";
+    else
+        return "";
 }
 
 function html_attributes($attributes)
@@ -51,7 +68,6 @@ function html_tag($tag_name, $attributes = [], $content = "")
 {
     if ($attributes == "close") {
         return "</$tag_name>";
-
     }
     $html = "<$tag_name";
     $html .= html_attributes($attributes);
