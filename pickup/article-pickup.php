@@ -25,13 +25,18 @@ class ArticlePickup extends Article
             $classes[] = "week2+";
         if ($this->order->state == "closed")
             $classes[] = "closed";
-
-        print '<p ' .
-            ' class="' . implode(" ", $classes) . '" ' .
-            ' id="p-article-' . $this->id . '"' .
-            ' data-order-id="' . $this->order->id . '" ' .
-            ' data-pickup-date-index="' . $this->order->pickup_date_index . '" ' .
-            '>'; {
+        // print '<p ' .
+        //     ' class="' . implode(" ", $classes) . '" ' .
+        //     ' id="p-article-' . $this->id . '"' .
+        //     ' data-order-id="' . $this->order->id . '" ' .
+        //     ' data-pickup-date-index="' . $this->order->pickup_date_index . '" ' .
+        //     '>'; {
+        print html_tag("p", [
+            "class" => $classes,
+            "id" => "p-article-" . $this->id,
+            "data-order-id" => $this->order->id,
+            "data-pickup-date-index" => $this->order->pickup_date_index,
+        ]); {
             $this->html_checkbox();
             $this->html_name();
             print "<br>\n";
@@ -74,7 +79,8 @@ class ArticlePickup extends Article
 
     public function html_name()
     {
-        print "<b>" . $this->name . "</b>";
+        // print "<b>" . $this->name . "</b>";
+        print html_tag("b", [], $this->name);
         parent::html_name();
     }
 
@@ -160,7 +166,7 @@ class ArticlePickup extends Article
         print "<br><span id='$weight_received_id'>";
         if ($this->adapted_received) {
             print "Gewicht erhalten: " . $this->weight_received . " Gramm ";
-            $on_click .= "document.getElementById('$weight_received_id').style.display = 'none';";
+            $on_click .= "document.getElementById('$weight_received_id').style.display = 'none'; ";
         } else {
             print "Gewicht bestellt: " . $this->weight_ordered . " Gramm ";
         }
@@ -187,21 +193,46 @@ class ArticlePickup extends Article
 
 
         if ($this->ordered > 1 && $this->has_variable_weight) {
-            print '<br><span id="weight-separated-' . $this->id . '">' .
-                '<button type="button"
-                    onclick="show_individual_weight_inputs(' . $this->id . ',' . $this->ordered . ')">' .
-                'Gewicht für jedes Stück extra eingeben</button><br></span>' . "\n";
+
+            print "<br>";
+
+            //print '<span id="weight-separated-' . $this->id . '">';
+            // print '<button type="button"
+            //         onclick="show_individual_weight_inputs(' . $this->id . ',' . $this->ordered . ')">' .
+            //     'Gewicht für jedes Stück extra eingeben</button><br></span>' . "\n";
+
+            //print html_tag("span", [ "id"=>"weight-separated-$this->id"]); 
+            print html_button(
+                "Gewicht für jedes Stück extra eingeben",
+                "weight-separated-$this->id",
+                "show_individual_weight_inputs($this->id, $this->ordered)"
+            );
             for ($i = 0; $i < $this->ordered; $i++) {
                 $idnr = $this->id . "-$i";
-                print "<span id='single-weight-$idnr' style='display: none'>" .
-                    "Gewicht Stück " . ($i + 1) . ": " .
-                    "<input class='weight' type='text' name='single_weight[" . $this->id . "][$i]' " .
-                    " id='weight-$idnr' size='2' onChange='calculate_sum(" . $this->id . "," . $this->ordered . ")'>
-                    Gramm" .
-                    "<br></span>\n";
+                // print "<span id='single-weight-$idnr' style='display: none'>" .
+                //     "Gewicht Stück " . ($i + 1) . ": " .
+                //     "<input class='weight' type='text' name='single_weight[" . $this->id . "][$i]' " .
+                //     " id='weight-$idnr' size='2' onChange='calculate_sum(" . $this->id . "," . $this->ordered . ")'>
+                //     Gramm" .
+                //     "<br></span>\n";
+                print html_tag(
+                    "span",
+                    [
+                        "id" => "single-weight-$idnr",
+                        "style" => "display: none"
+                    ],
+                    sprintf("Gewicht Stück %d: ", $i + 1) .
+                    html_tag("input", [
+                        "class" => "weight",
+                        "type" => "text",
+                        "name" => "single_weight[" . $this->id . "][$i]",
+                        "id" => "weight-$idnr",
+                        "size" => "2",
+                        "onChange" => "calculate_sum($this->id,$this->ordered)",
+                    ]) . " Gramm<br>"
+                );
             }
         }
-        print "</span>";
     }
 
     private function html_number_input()

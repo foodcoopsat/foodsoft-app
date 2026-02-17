@@ -24,7 +24,7 @@ class PickupApp extends FoodsoftApiApp
         "producer" => "Produzent*in",
         "order_date" => "Bestelldatum",
         # "id" => "Artikel-ID",
-        "name" => "Artikelname",
+        "article_name" => "Artikelname",
         "unit" => "Einheit",
         "price" => "€/Einheit",
         "price_diff" => "€ Differenz",
@@ -51,9 +51,8 @@ class PickupApp extends FoodsoftApiApp
             $this->title = "Protokoll Abholen";
             $this->html_header();
             $this->html_title();
-            $this->load_protocoll(5); // load protocoll of the last 5 weeks
-            $this->generate_table_from_protocoll();
-            $this->sort_table("date", "desc");
+            $this->load_protocolls(5); // load protocoll of the last 5 weeks
+            $this->generate_table_from_protocoll($this->get["view"] ?? "chronological");
             $this->html_table($this->table, $this->table_headers);
             $this->html_footer();
             exit();
@@ -328,7 +327,7 @@ class PickupApp extends FoodsoftApiApp
             "producer" => $article->order->producer ?? "",
             "order_date" => $article->order->date_end ?? "",
             "id" => $article->id ?? "",
-            "name" => $article->name ?? "",
+            "article_name" => $article->name ?? "",
             "unit" => $article->unit ?? "",
             "price" => $article->price ?? 0.,
             "ordered" => $article->ordered ?? 0,
@@ -354,17 +353,24 @@ class PickupApp extends FoodsoftApiApp
         }
     }
 
-
-    public function protocoll_filename($week = 0)
+    public function table_change($row_index, $key)
     {
-        return "pickup/protocolls/" .
-            date("Y-W", strtotime("-$week weeks")) .
-            ".txt";
+        if ($row_index == 0)
+            return true;
+        return $this->table[$row_index][$key] != $this->table[$row_index - 1][$key];
+    }
+    public function set_row_class($row_index, $color_index)
+    {
+        $this->table[$row_index]["class"] =
+            ($this->table[$row_index]["received"] == 0 ? "warning " :
+                ($color_index % 2 == 1 ? "shaded " : ""));
     }
 
-    public function generate_table_from_protocoll()
+    public function generate_table_from_protocoll($view = "chronological")
     {
         parent::generate_table_from_protocoll();
+
+        // print "<pre>";
         foreach ($this->table as $i => $row) {
             $this->table[$i]["price_diff"] = ($row["received"] - $row["ordered"]) * $row["price"];
             if ($row["weight_ordered"] == 0) {
@@ -373,7 +379,60 @@ class PickupApp extends FoodsoftApiApp
                 $this->table[$i]["weight_received_initial"] = "";
             }
         }
-    }
-}
 
+        if ($view == "chronological") {
+            $this->sort_table("date");
+            $i_ordergroup = 0;
+            foreach ($this->table as $i => $row) {
+                if ($i > 0 && $this->table_change($i, "ordergroup"))
+                    $i_ordergroup++;
+                // print "$i '" . $row["ordergroup"] . "'  $i_ordergroup\n";
+                $this->set_row_class($i, $i_ordergroup);
+            }
+        } elseif ($view == "orders") {
+            $this->sort_table("orders");
+            $i_article = 0;
+            foreach ($this->table as $i => $row) {
+                if ($this->table_change($i, "article_name"))
+                    $i_article++;
+                if (
+                    $this->table_change($i, "order_date") ||
+                    $this->table_change($i, "producer")
+                ) {                // print "$i '" . $row["ordergroup"] . "'  $i_ordergroup\n";
+                    $this->table[$i]["heading"] =
+                        $row["producer"] . " " . $row["order_date"];
+                    $i_article = 0;
+                }
+                $this->set_row_class($i, $i_article);
+            }
+        }
+        // print "</pre>";
+    }
+
+    public function sort_table($sort_by, $order = "asc")
+    {
+        // sort the data table by the given column name
+        if ($sort_by == "orders") {
+            print "<pre>";
+            // foreach (["order_date", 'producer', 'article_name', 'ordergroup'] as $p) {
+            //     print "$p: " . count(array_column($this->table, $p)) . "\n";
+            // }
+            array_multisort(
+                array_column($this->table, 'order_date'),
+                SORT_ASC,
+                array_column($this->table, 'producer'),
+                SORT_ASC,
+                array_column($this->table, 'article_name'),
+                SORT_ASC,
+                array_column($this->table, 'ordergroup'),
+                SORT_ASC,
+                $this->table
+            );
+            print "</pre>";
+        } else {
+            parent::sort_table($sort_by, $order);
+        }
+    }
+
+}
 ?>

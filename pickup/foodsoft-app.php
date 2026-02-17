@@ -10,6 +10,7 @@ class FoodsoftApp
     public $foodcoop_dirname;
     public $decimal_separator;
     public $post;
+    public $get;
     public $foodcoop_name = "Unbekannte Foodcoop";
     public $username;
     public $realname;
@@ -27,6 +28,7 @@ class FoodsoftApp
     public $base_distribution = 10000;
     public $base_pickedup = 1000;
     public $protocoll = [];
+    public $protocoll_last_modified = null;
     public $table_default_values = [];
     public $table_keys = [];
     public $table = [];
@@ -38,8 +40,9 @@ class FoodsoftApp
         global $_POST;
         global $_GET;
 
-        $this->app_name = $_GET["app"] ?? "";
-        $this->action = $_GET["action"] ?? "";
+        $this->get = $_GET;
+        $this->app_name = $this->get["app"] ?? "";
+        $this->action = $this->get["action"] ?? "";
 
         $this->request_uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
         $this->foodcoop_dirname = basename($this->request_uri);
@@ -168,10 +171,25 @@ class FoodsoftApp
     }
     public function html_table($table, $headers)
     {
-        $html = "<table>\n";
-        $html .= "  <tr><th>" . implode("</th><th>", array_values($headers)) . "</th></tr>\n";
+        $table_start = " <table> <tr><th>" . implode("</th><th>", array_values($headers)) . "</th></tr>\n";
+        $table_end = "</table>";
+
+        $html = "";
+        $is_table_started = false;
         foreach ($table as $row) {
-            $html .= "  <tr>";
+            if ($row["heading"] ?? false) {
+                if ($is_table_started) {
+                    $html .= $table_end;
+                }
+                $html .= html_tag("h2", [], $row["heading"]);
+                $is_table_started = false;
+            }
+            if (!$is_table_started) {
+                $html .= $table_start;
+                $is_table_started = true;
+            }
+
+            $html .= html_tag("tr", ["class" => $row["class"] ?? ""]);
             foreach (array_keys($headers) as $key) {
                 $data = $row[$key] ?? "";
                 $align = "left";
@@ -196,7 +214,11 @@ class FoodsoftApp
             }
             $html .= "</tr>\n";
         }
-        $html .= "</table>\n";
+        if ($is_table_started) {
+            $html .= $table_end;
+        } else {
+            $html .= html_tag("p", ["class" => "info"], "Keine Einträge zum Anzeigen.");
+        }
         print $html;
     }
     public function get_foodsoft_users($skip_users_without_ordergroup)
@@ -222,7 +244,7 @@ class FoodsoftApp
 
     public function protocoll_filename($week = 0)
     {
-        return $this->foodcoop_dirname . "/data/" . $this->app_name . "/protocolls/" .
+        return $this->app_name . "/protocolls/" .
             date("Y-W", strtotime("-$week weeks")) .
             ".txt";
     }
@@ -234,8 +256,11 @@ class FoodsoftApp
     }
 
 
-    public function save_protocoll()
+    public function save_protocoll($data = null)
     {
+        if ($data !== null) {
+            $this->protocoll = $data;
+        }
         $path = $this->protocoll_filename();
         $dir = dirname($path);
         if (!is_dir($dir)) {
@@ -256,27 +281,55 @@ class FoodsoftApp
                 return false;
             }
         }
-        foreach ($this->protocoll as $entry) {
-            fwrite($file, json_encode($entry) . "\n");
+        if (is_array($this->protocoll)) {
+            foreach ($this->protocoll as $entry) {
+                fwrite($file, json_encode($entry) . "\n");
+            }
+        } else { // protocoll is a json string 
+            fwrite($file, $this->protocoll . "\n");
         }
+
         flock($file, LOCK_UN);
         fclose($file);
         return true;
     }
 
-
-    public function load_protocoll_week($week)
+    public function load_protocolls($n_weeks)
+    {
+        $this->protocoll = [];
+        for ($week = $n_weeks - 1; $week >= 0; $week--) {
+            $this->protocoll_last_modified = null;
+            $this->protocoll = array_merge($this->protocoll, $this->load_protocoll($week));
+        }
+    }
+    public function load_protocoll($week = 0, $start_index = 0)
+    {
+        $protocoll = [];
+        foreach ($this->load_protocoll_json($week, $start_index) as $json) {
+            $protocoll[] = json_decode($json, true);
+        }
+        return $protocoll;
+    }
+    public function load_protocoll_json($week = 0, $start_index = 0)
     {
         $filename = $this->protocoll_filename($week);
+        clearstatcache();
+        if ($this->protocoll_last_modified && filemtime($filename) == $this->protocoll_last_modified) {
+            return []; // no updates available since last call
+        }
         $protocoll = [];
         # print "Loading protocoll from file: $filename";
         if (file_exists($filename)) {
+            $this->protocoll_last_modified = filemtime($filename);
             $file = fopen($filename, "r");
+            $index = 0;
             while (($line = fgets($file)) !== false) {
-                $protocoll[] = json_decode($line, true);
+                if ($index++ >= $start_index)
+                    $protocoll[] = $line;
             }
             fclose($file);
         } else {
+            // return empty protocoll array
             # print " (file does not exist yet)";
         }
         # print "\n";
@@ -284,13 +337,8 @@ class FoodsoftApp
     }
 
 
-    public function load_protocoll($n_weeks)
-    {
-        $this->protocoll = [];
-        for ($week = 0; $week < $n_weeks; $week++) {
-            $this->protocoll = array_merge($this->protocoll, $this->load_protocoll_week($week));
-        }
-    }
+
+
 
     public function generate_table_from_protocoll()
     {
@@ -302,9 +350,11 @@ class FoodsoftApp
     public function sort_table($sort_by, $order = "asc")
     {
         // sort the data table by the given column name
+
         $sort_values = array_column($this->table, $sort_by);
         $sort_order = $order == "desc" ? SORT_DESC : SORT_ASC;
         array_multisort($sort_values, $sort_order, $this->table);
+
     }
 
 

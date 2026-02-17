@@ -7,9 +7,20 @@ require_once("html-helpers.php");
 class DistributeApp extends FoodsoftApiApp
 {
     public $order_ids;
+    public $ajax_timeout = 100;
+
+    public function needs_api()
+    {
+        return !in_array($this->action, ["ajax-write", "ajax-read"]);
+    }
     public function __construct($config)
     {
         parent::__construct($config);
+
+        if (str_contains($this->action, "ajax")) {
+            $this->handle_ajax();
+            exit;
+        }
 
         $this->title = "Einkistln";
         $this->order_ids = $this->post["order_ids"] ?? [];
@@ -28,6 +39,23 @@ class DistributeApp extends FoodsoftApiApp
         }
         $this->html_footer();
     }
+
+    public function handle_ajax()
+    {
+        if ($this->action == "ajax-write") {
+            $this->save_protocoll($this->get["ajax-data"]);
+        } elseif ($this->action == "ajax-read") {
+            // ... handle ajax read 
+            $from_event = $this->get['from_event'];
+            $n_tries = 0;
+            do {
+                $new_events = $this->load_protocoll_json(0, $from_event);
+                sleep(1);
+            } while (count($new_events) == 0 && $n_tries++ < $this->ajax_timeout);
+            print implode("\n", $new_events);
+        }
+    }
+
 
     public function get_foodsoft_orders($order_ids = null, $stock_orders = true)
     {
