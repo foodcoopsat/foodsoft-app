@@ -184,6 +184,7 @@ class FoodsoftApp
         print "<small>Die Auswahlliste enthält $n_users Einträge.</small></p>";
         return false;
     }
+
     public function html_table($table, $headers)
     {
         // show html table of $table for all keys of $headers
@@ -191,17 +192,27 @@ class FoodsoftApp
         // $table rows can have optional entries for style classes and headings
         // data format is set according to keys ("price", ...) and data types (numbers, strings)
 
+        $toc = [];
+        foreach ($table as $row) {
+            if ($row["heading"] ?? false) {
+                $i = count($toc);
+                $toc[] = html_tag("a", ["href" => "#h$i"], $row["heading"]);
+            }
+        }
+        print html_list($toc);
+
         $table_start = " <table> <tr><th>" . implode("</th><th>", array_values($headers)) . "</th></tr>\n";
         $table_end = "</table>";
 
         $html = "";
         $is_table_started = false;
+        $i_heading = 0;
         foreach ($table as $row) {
             if ($row["heading"] ?? false) {
                 if ($is_table_started) {
                     $html .= $table_end;
                 }
-                $html .= html_tag("h2", [], $row["heading"]);
+                $html .= html_tag("h2", ["id" => "h" . $i_heading++], $row["heading"]);
                 $is_table_started = false;
             }
             if (!$is_table_started) {
@@ -366,11 +377,14 @@ class FoodsoftApp
 
     public function load_protocolls()
     {
+        print "<pre class='disabled'>";
         $this->protocoll = [];
         for ($week = $this->n_weeks - 1; $week >= 0; $week--) {
             $this->protocoll_last_modified = null;
             $this->protocoll = array_merge($this->protocoll, $this->load_protocoll($week));
         }
+        // print_r($this->protocoll);
+        print "</pre>";
     }
     public function load_protocoll($week = 0, $start_index = 0)
     {
@@ -382,13 +396,17 @@ class FoodsoftApp
     }
     public function load_protocoll_json($week = 0, $start_index = 0)
     {
-        $filename = $this->data_filename($this->app_name, $this->protocoll_dir, $week, $week);
+        $filename = $this->data_filename(
+            $this->app_name,
+            $this->protocoll_dir,
+            $week
+        );
         clearstatcache();
         if ($this->protocoll_last_modified && filemtime($filename) == $this->protocoll_last_modified) {
             return []; // no updates available since last call
         }
         $protocoll = [];
-        # print "Loading protocoll from file: $filename";
+        print "Loading protocoll from file: $filename";
         if (file_exists($filename)) {
             $this->protocoll_last_modified = filemtime($filename);
             $file = fopen($filename, "r");
@@ -400,9 +418,9 @@ class FoodsoftApp
             fclose($file);
         } else {
             // return empty protocoll array
-            # print " (file does not exist yet)";
+            print " (file does not exist yet)";
         }
-        # print "\n";
+        print "\n";
         return $protocoll;
     }
 

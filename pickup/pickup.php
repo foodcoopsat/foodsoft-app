@@ -410,7 +410,7 @@ class PickupApp extends FoodsoftApiApp
                     $this->table_change($i, "producer")
                 ) {                // print "$i '" . $row["ordergroup"] . "'  $i_ordergroup\n";
                     $this->table[$i]["heading"] =
-                        $row["producer"] . " " . $row["order_date"];
+                        $row["order_date"] . " " . $row["producer"];
                     $i_article = 0;
                 }
                 $this->set_row_class($i, $i_article);
@@ -429,7 +429,7 @@ class PickupApp extends FoodsoftApiApp
             // }
             array_multisort(
                 array_column($this->table, 'order_date'),
-                SORT_ASC,
+                SORT_DESC,
                 array_column($this->table, 'producer'),
                 SORT_ASC,
                 array_column($this->table, 'article_name'),

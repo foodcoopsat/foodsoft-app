@@ -28,6 +28,8 @@ function html_button($text, $id, $on_click, $visible = true)
 
 function html_list($items, $ordered = false)
 {
+    if (!$items)
+        return "";
     $list_type = $ordered ? "ol" : "ul";
     return "<$list_type><li>" .
         implode("</li><li>", $items) .
