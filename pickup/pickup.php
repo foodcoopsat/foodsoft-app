@@ -11,6 +11,7 @@ class PickupApp extends FoodsoftApiApp
 {
 
     public $login_user;
+
     public $credit;
     public $n_pickedup_initially = 0;
     public $articles_not_pickedup = [];
@@ -51,7 +52,7 @@ class PickupApp extends FoodsoftApiApp
             $this->title = "Protokoll Abholen";
             $this->html_header();
             $this->html_title();
-            $this->load_protocolls(5); // load protocoll of the last 5 weeks
+            $this->load_protocolls(); // load protocoll of the last 5 weeks
             $this->generate_table_from_protocoll($this->get["view"] ?? "chronological");
             $this->html_table($this->table, $this->table_headers);
             $this->html_footer();
@@ -71,6 +72,7 @@ class PickupApp extends FoodsoftApiApp
                     "onbeforeunload" => "return before_unload()",
                 ]);
                 $this->html_title();
+                $this->load_article_pickup_states();
                 $this->html_pickup_form();
             } else {
                 $this->html_header();
@@ -114,6 +116,7 @@ class PickupApp extends FoodsoftApiApp
         }
         $this->set_orders($data["group_orders"]);
     }
+
 
 
     public function create_order($data)
@@ -167,6 +170,7 @@ class PickupApp extends FoodsoftApiApp
                 $this->local_currency_str($this->get_foodsoft_credit());
         }
         print "</p>";
+
         // print "was_ordergroup_selected: " . ($this->was_ordergroup_selected ? "true" : "false") . "<br>";
         $this->get_foodsoft_group_orders($this->was_ordergroup_selected ? $this->ordergroup_id : null);
         foreach ($this->orders_by_date as $date_str => $order_indices) {
@@ -185,8 +189,9 @@ class PickupApp extends FoodsoftApiApp
         }
 
         print "<p>";
-        print html_button("zeige mehr Artikel", 'show-more', 'show_articles(5);');
-        print html_button("zeige weniger Artikel", 'show-less', 'show_articles(1);');
+        $n = $this->n_weeks;
+        print html_button("zeige mehr Artikel", 'show-more', "show_articles($n);");
+        print html_button("zeige weniger Artikel", 'show-less', 'show_articles(1);', false);
         print "</p>";
 
         $this->html_form_end(
@@ -258,6 +263,10 @@ class PickupApp extends FoodsoftApiApp
             $order->submit_updates(); // submit updates to foodsoft
         }
 
+        if ($this->article_state_save_method == "in-app") {
+            $this->save_data("states", $this->articles_pickedup, true);
+        }
+
         $html = array_filter($html);
         if (count($html) == 0) {
             $html = [
@@ -288,6 +297,7 @@ class PickupApp extends FoodsoftApiApp
 
         $this->save_protocoll();
 
+        // http://localhost/pickup/foodcoopsat/franckkistl/?app=pickup&action=&username=Ina+Luchsinger&ordergroup=Ina+und+Lukas&ordergroup_id=223&login_user=admin+&access_token=newz1536YOgk1RrzLOt2riZGy9BeZyYgH5GO8GrJXmU
         $query = http_build_query([
             "app" => $this->app_name,
             "action" => "",
@@ -315,7 +325,7 @@ class PickupApp extends FoodsoftApiApp
 
     // ==== protocoll =========================================================
 
-    public function protocoll_array($article = null)
+    public function protocoll_entry($article = null)
     {
         // if no article is given, return the keys and default values for empty protocoll entries
         return [
@@ -349,7 +359,7 @@ class PickupApp extends FoodsoftApiApp
             // print "update => " . ($article->update ? "true" : "false") . ", ";
             // var_dump($article->update);
             // print "</pre>";
-            $this->protocoll[] = $this->protocoll_array($article);
+            $this->protocoll[] = $this->protocoll_entry($article);
         }
     }
 

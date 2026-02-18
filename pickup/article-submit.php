@@ -85,14 +85,26 @@ class ArticleSubmitted extends Article
 
     public function update_status()
     {
-        // use tolerance to save pickup information
-        $this->update["tolerance"] =
-            ($this->get("tolerance") ?? 0) +
-            ($this->is_distributed() ? $this->app->base_distribution : 0) +
-            ($this->is_checked() ? $this->app->base_pickedup : 0);
-
-        // alternative: use database field
-        // $update["state"] = ...
+        if ($this->app->article_state_save_method == "foodsoft-db-tolerance") {  //, "foodsoft-db-article-state", "in-app"
+            // use tolerance to save pickup information
+            $this->update["tolerance"] =
+                ($this->get("tolerance") ?? 0) +
+                ($this->is_distributed() ? $this->app->base_distribution : 0) +
+                ($this->is_checked() ? $this->app->base_pickedup : 0);
+        } elseif ($this->app->article_state_save_method == "foodsoft-db-article-state") {
+            // use database field
+            // $update["state"] = ...
+            // todo: implement it, create database columns
+            error_log("update_status(): noch nicht implementierte Methode: " . $this->app->article_state_save_method);
+        } elseif ($this->app->article_state_save_method == "in-app") {
+            $this->app->articles_pickedup[] = [
+                "id" => $this->id,
+                "pickedup" => $this->is_checked(),
+                "date" => date("Y-m-d H:i:s")
+            ];
+        } else {
+            error_log("update_status(): unbekannte Methode: " . $this->app->article_state_save_method);
+        }
     }
 
     public function update_received()

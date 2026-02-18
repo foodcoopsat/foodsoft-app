@@ -12,14 +12,15 @@ function html_hidden_input($name, $value)
     );
 }
 
-function html_button($text, $id, $on_click)
+function html_button($text, $id, $on_click, $visible = true)
 {
     return html_tag(
         "button",
         [
             "type" => "button",
             "id" => $id,
-            "onclick" => $on_click
+            "onclick" => $on_click,
+            "style" => ($visible ? "" : "display:none"),
         ],
         $text
     );

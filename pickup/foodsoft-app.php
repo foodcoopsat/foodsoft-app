@@ -25,8 +25,13 @@ class FoodsoftApp
     public $users;
     public $user_str_separator;
     public $time_now;
+    public $n_weeks; // number of weeks from $time_now back to consider orders
+    public $article_state_save_method = "in-app"; // "foodsoft-db-tolerance", "foodsoft-db-article-state", "in-app"
+    public $articles_pickedup = [];
+    public $articles_distributed = [];
     public $base_distribution = 10000;
     public $base_pickedup = 1000;
+    public $protocoll_dir = "protocolls";
     public $protocoll = [];
     public $protocoll_last_modified = null;
     public $table_default_values = [];
@@ -41,6 +46,8 @@ class FoodsoftApp
         global $_GET;
 
         $this->get = $_GET;
+        $this->post = $_POST;
+
         $this->app_name = $this->get["app"] ?? "";
         $this->action = $this->get["action"] ?? "";
 
@@ -52,23 +59,31 @@ class FoodsoftApp
         $this->decimal_separator = $config["decimal_separator"] ?? ",";
         $this->user_str_separator = $config["user_str_separator"] ?? "|";
         $this->time_now = $config["time_now"] ?? "today";
+        $this->n_weeks = $this->config["n_weeks"] ?? 5;
 
 
-        $this->post = $_POST;
-        if ($this->was_ordergroup_selected = key_exists("username", $this->post)) {
-            $items = explode($this->user_str_separator, $this->post["username"]);
+        $post_get = array_merge($this->post, $this->get);
+        if ($this->was_ordergroup_selected = key_exists("username", $post_get)) {
+            $items = explode($this->user_str_separator, $this->post["username"] ?? "");
             if (count($items) > 1) { // from user selection dropdown
                 $this->username = $items[0];
                 $this->ordergroup_id = $items[1];
                 $this->ordergroup = $items[2];
-            } else { // from hidden input after form submission
-                $this->username = $this->post["username"] ?? $_GET["username"];
-                $this->ordergroup_id = $this->post["ordergroup_id"] ?? $_GET["ordergroup_id"];
-                $this->ordergroup = $this->post["ordergroup"] ?? $_GET["ordergroup"];
+            } else { // from hidden input after form submission (go back)
+                $this->username = $post_get["username"];
+                $this->ordergroup_id = $post_get["ordergroup_id"];
+                $this->ordergroup = $post_get["ordergroup"];
             }
         } else {
             $this->username = null;
         }
+        // print "<pre class='disabled'>";
+        // print "items: ";
+        // print_r($items);
+        // print "_GET: ";
+        // print_r($_GET);
+        // print "username: $this->username";
+        // print "</pre>";
 
         #ini_set("precision", 14);
         ini_set("serialize_precision", 14);
@@ -171,6 +186,11 @@ class FoodsoftApp
     }
     public function html_table($table, $headers)
     {
+        // show html table of $table for all keys of $headers
+        // $headers = [key=>table_head_for_key, ...]
+        // $table rows can have optional entries for style classes and headings
+        // data format is set according to keys ("price", ...) and data types (numbers, strings)
+
         $table_start = " <table> <tr><th>" . implode("</th><th>", array_values($headers)) . "</th></tr>\n";
         $table_end = "</table>";
 
@@ -227,6 +247,16 @@ class FoodsoftApp
         $this->users = [];
     }
 
+    public function load_article_pickup_states()
+    {
+        foreach ($this->load_data("pickup", "states", true) as $entry) {
+            $this->articles_pickedup[$entry["id"]] = [
+                "pickedup" => $entry["pickedup"],
+                "date" => $entry["date"]
+            ];
+        }
+    }
+
     public function has_current_user_ordergroup()
     {
         return $this->ordergroup_id != -1;
@@ -240,34 +270,36 @@ class FoodsoftApp
     }
 
 
-    // --- protocoll functions --------------------------------
+    // --- data and protocoll functions --------------------------------
 
-    public function protocoll_filename($week = 0)
+    public function data_filename($app_name, $dir, $week = 0, $ordergroup = false)
     {
-        return $this->app_name . "/protocolls/" .
-            date("Y-W", strtotime("-$week weeks")) .
+        return $app_name . "/$dir/" .
+            date("Y/Y-W", strtotime("-$week weeks")) .
+            ($ordergroup ? ($ordergroup === "*" ? "-*" : sprintf("-%04d", $this->ordergroup_id)) : "") .
             ".txt";
     }
 
-    public function protocoll_array($article = null)
+
+
+    public function protocoll_entry($article = null)
     {
-        // to be overwritten by inherited class 
+        // return protocoll entry for article
+        // if no article is given, return the keys and default values for empty protocoll entries:
+        //     called by generate_table_from_protocoll()
+        // to be overwritten by inherited app classes 
         return [];
     }
 
-
-    public function save_protocoll($data = null)
+    public function save_data($dir, $data, $ordergroup = false)
     {
-        if ($data !== null) {
-            $this->protocoll = $data;
-        }
-        $path = $this->protocoll_filename();
+        $path = $this->data_filename($this->app_name, $dir, 0, $ordergroup);
         $dir = dirname($path);
         if (!is_dir($dir)) {
             print html_tag(
                 "p",
                 ["class" => "info"],
-                "Protokoll-Verzeichnis existiert noch nicht, erstelle Verzeichnis '$dir'..."
+                "Daten-Verzeichnis existiert noch nicht, erstelle Verzeichnis '$dir'..."
             );
             mkdir($dir, 0777, true);
         }
@@ -281,23 +313,61 @@ class FoodsoftApp
                 return false;
             }
         }
-        if (is_array($this->protocoll)) {
-            foreach ($this->protocoll as $entry) {
+        if (is_array($data)) {
+            foreach ($data as $entry) {
                 fwrite($file, json_encode($entry) . "\n");
             }
         } else { // protocoll is a json string 
-            fwrite($file, $this->protocoll . "\n");
+            fwrite($file, $data . "\n");
         }
 
         flock($file, LOCK_UN);
         fclose($file);
         return true;
     }
+    public function save_protocoll()
+    {
+        return $this->save_data($this->protocoll_dir, $this->protocoll);
+    }
 
-    public function load_protocolls($n_weeks)
+    public function load_data($app_name, $dir, $ordergroup)
+    {
+        print "<pre class='disabled'>";
+        $data = [];
+        for ($week = $this->n_weeks - 1; $week >= 0; $week--) {
+            $filename = $this->data_filename($app_name, $dir, $week, $ordergroup);
+            if ($ordergroup === "*") {
+                // load files from all ordergroups
+                foreach (glob($filename) as $filename) {
+                    print "loading*:   $filename ...\n";
+                    $file = fopen($filename, "r");
+                    while (($line = fgets($file)) !== false) {
+                        $data[] = json_decode($line, true);
+                    }
+                    fclose($file);
+                }
+            } else { // no or single ordergroup 
+                if (file_exists($filename)) {
+                    print "loading:    $filename ...\n";
+                    $file = fopen($filename, "r");
+                    while (($line = fgets($file)) !== false) {
+                        $data[] = json_decode($line, true);
+                    }
+                    fclose($file);
+                } else {
+                    print "not exists: $filename ...\n";
+                }
+            }
+        }
+        //print_r($data);
+        print "</pre>";
+        return $data;
+    }
+
+    public function load_protocolls()
     {
         $this->protocoll = [];
-        for ($week = $n_weeks - 1; $week >= 0; $week--) {
+        for ($week = $this->n_weeks - 1; $week >= 0; $week--) {
             $this->protocoll_last_modified = null;
             $this->protocoll = array_merge($this->protocoll, $this->load_protocoll($week));
         }
@@ -312,7 +382,7 @@ class FoodsoftApp
     }
     public function load_protocoll_json($week = 0, $start_index = 0)
     {
-        $filename = $this->protocoll_filename($week);
+        $filename = $this->data_filename($this->app_name, $this->protocoll_dir, $week, $week);
         clearstatcache();
         if ($this->protocoll_last_modified && filemtime($filename) == $this->protocoll_last_modified) {
             return []; // no updates available since last call
@@ -342,7 +412,7 @@ class FoodsoftApp
 
     public function generate_table_from_protocoll()
     {
-        $this->table_default_values = $this->protocoll_array();
+        $this->table_default_values = $this->protocoll_entry();
         $this->table_keys = array_keys($this->table_default_values);
         $this->table = $this->protocoll;
     }

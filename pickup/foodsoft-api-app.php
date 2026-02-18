@@ -64,7 +64,7 @@ class FoodsoftApiApp extends FoodsoftApp
 
     public function has_current_user_ordergroup()
     {
-        // print "<pre>";
+        // print "<pre class='disabled'>";
         // var_dump($this->username);
         if (!$this->username) {
             $this->get_foodsoft_user();
@@ -72,7 +72,7 @@ class FoodsoftApiApp extends FoodsoftApp
         // var_dump($this->username);
         // var_dump($this->ordergroup_id);
         // print "</pre>";
-        return $this->ordergroup_id !== -1;
+        return $this->ordergroup_id != -1 && $this->ordergroup_id !== null;
     }
 
     public function get_foodsoft_credit()
@@ -93,7 +93,7 @@ class FoodsoftApiApp extends FoodsoftApp
         }
         $inactive_user = $this->config["inactive_user"] ?? "ZZ";
         $users = array_filter($users, function ($user) use ($inactive_user) {
-            return !str_contains($user["ordergroup_name"], $inactive_user);
+            return $user["ordergroup_name"] && !str_contains($user["ordergroup_name"], $inactive_user);
         });
         array_multisort(
             array_column($users, 'name'),

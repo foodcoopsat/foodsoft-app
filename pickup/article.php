@@ -27,7 +27,7 @@ class Article
     public $has_adaptable_weight;
     public $has_locked_weight;
     public $locked_weight;
-    public $is_checked;
+    public $is_pickedup;
     public $is_distributed;
     public $note;
     public $text_not_received = "nicht erhalten|doch erhalten";
@@ -65,13 +65,24 @@ class Article
 
     public function set_state()
     {
+        // there are multiple supported ways to save the articles' state,
+        // all of them are supported in reading data, but may be overwritten by the later ones
+
+        // $app->article_state_save_method == "foodsoft-db-tolerance"
         // use tolerance to save pickup information
         $tolerance_db = $this->tolerance;
         $this->tolerance = $tolerance_db % 1000;
         $this->is_distributed = intdiv($tolerance_db, $this->app->base_distribution) % 10;
-        $this->is_checked = intdiv($tolerance_db, $this->app->base_pickedup) % 10;
+        $this->is_pickedup = intdiv($tolerance_db, $this->app->base_pickedup) % 10;
 
-        // alternative: use database field
+
+        // $app->article_state_save_method ==  "foodsoft-db-article-state"
+        // // alternative: use database field
+        // todo: implemet it ...
+
+        // $app->article_state_save_method == "in-app"
+        $this->is_distributed = $this->app->articles_distributed[$this->id]["distributed"] ?? $this->is_distributed;
+        $this->is_pickedup = $this->app->articles_pickedup[$this->id]["pickedup"] ?? $this->is_pickedup;
     }
 
     public function finalize_construct()

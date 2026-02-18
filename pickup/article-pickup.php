@@ -70,9 +70,9 @@ class ArticlePickup extends Article
             "id" => "checkbox-" . $this->id,
             "value" => $this->id,
             "onChange" => "update_article_visibility(" . $this->id . ")",
-            ($this->is_checked ? "checked" : ""),
+            ($this->is_pickedup ? "checked" : ""),
         ]);
-        if ($this->is_checked) {
+        if ($this->is_pickedup) {
             print " <input type='hidden' name='checked_initial[]' value='" . $this->id . "'>\n";
         }
     }

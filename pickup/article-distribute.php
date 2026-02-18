@@ -20,7 +20,7 @@ class ArticleDistribute extends Article
             // replace the next 5 lines if status is obtained directly
             $this->tolerance = $go["tolerance"];
             $this->set_state();
-            $go["checked"] = $this->is_checked;
+            $go["checked"] = $this->is_pickedup;
             $go["distributed"] = $this->is_distributed;
             $go["tolerance"] = $this->tolerance;
 
