@@ -11,10 +11,10 @@ class PickupApp extends FoodsoftApiApp
 {
 
     public $login_user;
-
     public $credit;
     public $n_pickedup_initially = 0;
     public $articles_not_pickedup = [];
+    public $comment_level;
     public $protocoll = [];
     public $table_headers = [
         "date" => "Datum",
@@ -72,7 +72,7 @@ class PickupApp extends FoodsoftApiApp
                     "onbeforeunload" => "return before_unload()",
                 ]);
                 $this->html_title();
-                $this->load_article_pickup_states();
+                $this->load_article_pickup_states("current");
                 $this->html_pickup_form();
             } else {
                 $this->html_header();
@@ -84,6 +84,7 @@ class PickupApp extends FoodsoftApiApp
             }
         } elseif ($this->action == "submit") {
             $this->login_user = $this->post["login_user"];
+            $this->comment_level = $this->config["comment_level"] ?? 1; // 0: save no order comments, 1: only article notes, 2: every changes to received  
             $this->html_header();
             $this->html_title();
             $this->html_submit();
@@ -106,12 +107,17 @@ class PickupApp extends FoodsoftApiApp
             $url .= "/?ordergroup_id=$ordergroup_id";
         $data = $this->api->getResource($url);
         if ($data == NULL) {
-            print 'getResource($access_token, "' . $url . '") => NULL' . "\n";
-            if ($this->config["use_local_foodsoft"] ?? false) {
-                print "lokale Foodsoftinstanz nicht gestartet?";
-            } else {
-                print "Fehler bei der Verbindung zum Foodsoft-Server?";
-            }
+            // $token = $this->api->access_token;
+            $host = $this->api->foodsoft_host;
+            print html_tag(
+                "p",
+                ["class" => "warning"],
+                "getResource(url: '$url') => NULL<br><br>" .
+                ($this->config["use_local_foodsoft"] ?? false ?
+                    "lokale Foodsoftinstanz nicht gestartet?" :
+                    "Fehler bei der Verbindung zum Foodsoft-Server $host " .
+                    "oder pickup-Controller auf $host nicht installiert?")
+            );
             exit();
         }
         $this->set_orders($data["group_orders"]);
@@ -180,7 +186,6 @@ class PickupApp extends FoodsoftApiApp
                 ["class" => "date", "id" => "date-$date_index"],
                 $date_str
             );
-            // print "<h2 class='date' id='date-$date_index'>" . $date_str . "</h2>\n";
             foreach ($order_indices as $i) {
                 $order = $this->create_order($this->orders[$i]);
                 $order->pickup_date_index = $date_index;
@@ -234,37 +239,39 @@ class PickupApp extends FoodsoftApiApp
             $order = new OrderSubmitted($this, $order_id);
             foreach ($article_ids as $article_id) {
                 $article = new ArticleSubmitted($order, $article_id);
-                if (
+
+                $article->update_received_if(
                     $article->has_changed("received", 2) &&
                     !$article->is_different("weight_received", "weight_ordered", 0)
-                ) {
-                    $article->update_received();
-                    $article->add_note_received();
-                }
+                );
 
-                if ($article->has_changed("weight_received", 0)) {
-                    $article->update_received_weight();
-                    $article->add_note_received_weight();
-                }
+                $article->update_received_weight_if(
+                    $article->has_changed("weight_received", 0)
+                );
 
-                $html[] = $article->html_changes(); // before add_note_for_article to exclude note_for_article
+                $html[] = $article->html_changes(); // before add_user_note... to exclude user_note, is added in different way here
 
-                $article->add_note_for_article();
-                $this->add_to_protocoll($article);
+                $article->add_user_note_if(
+                    $article->has_changed("note") ||
+                    $article->has_changelog_items() && $article->note
+                );
+                $this->add_to_protocoll_if(
+                    $article->update || $article->has_changed("note"), // array_filter($article->update) ???
+                    $article
+                );
 
-                if ($article->checked_has_changed()) {
-                    $article->update_status();
-                }
+                $article->update_status_if($article->checked_has_changed());
+
                 $html_unchecked[] = $article->html_unchecked();
 
                 $order->add_update($article);
-                $order->add_note_items($article);
+                $order->add_changelog_entry($article);
             }
             $order->submit_updates(); // submit updates to foodsoft
         }
 
         if ($this->article_state_save_method == "in-app") {
-            $this->save_data("states", $this->articles_pickedup, true);
+            $this->save_data("states", $this->articles_pickedup, "current");
         }
 
         $html = array_filter($html);
@@ -297,7 +304,7 @@ class PickupApp extends FoodsoftApiApp
 
         $this->save_protocoll();
 
-        // http://localhost/pickup/foodcoopsat/franckkistl/?app=pickup&action=&username=Ina+Luchsinger&ordergroup=Ina+und+Lukas&ordergroup_id=223&login_user=admin+&access_token=newz1536YOgk1RrzLOt2riZGy9BeZyYgH5GO8GrJXmU
+        // http://localhost/pickup/foodcoopsat/franckkistl/?app=pickup&action=&username=Ina&ordergroup=Ina+und+Lukas&ordergroup_id=223&login_user=admin+&access_token=newz1536YOgk1RrzLOt2riZGy9BeZyYgH5GO8GrJXmU
         $query = http_build_query([
             "app" => $this->app_name,
             "action" => "",
@@ -350,9 +357,9 @@ class PickupApp extends FoodsoftApiApp
             "note" => $article ? $article->get("note") : "",
         ];
     }
-    public function add_to_protocoll($article)
+    public function add_to_protocoll_if($condition, $article)
     {
-        if (array_filter($article->update) || $article->has_changed("note")) {
+        if ($condition) {
             // print "<pre>";
             // print $article->name . ": ";
             // print "note changed => " . ($article->has_changed("note") ? "true" : "false") . ", ";

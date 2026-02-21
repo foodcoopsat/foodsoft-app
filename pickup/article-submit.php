@@ -4,7 +4,7 @@ class ArticleSubmitted extends Article
 {
     public $update = [];
     public $single_weights;
-    public $note_items; // array of strings for note entries
+    public $changelog_items; // array of strings for note entries
 
     public function __construct($order, $id)
     {
@@ -28,7 +28,8 @@ class ArticleSubmitted extends Article
         $this->weight_received = floatval($this->get("weight_received"));
 
         $this->single_weights = $this->get("single_weight") ?: [];
-        $this->note_items = [];
+        $this->note = $this->get("note");
+        $this->changelog_items = [];
     }
 
     public function get($property)
@@ -73,8 +74,8 @@ class ArticleSubmitted extends Article
             return $value1 != $value2;
         } else {
             $difference = abs(round($value1, $digits) - round($value2, $digits));
-            $tolerance = pow(10, -$digits);
-            return $difference > $tolerance;
+            $diff_min = pow(10, -$digits);
+            return $difference > $diff_min;
         }
     }
     public function is_equal($property1, $property2, $digits = null)
@@ -83,8 +84,10 @@ class ArticleSubmitted extends Article
     }
 
 
-    public function update_status()
+    public function update_status_if($condition)
     {
+        if (!$condition)
+            return;
         if ($this->app->article_state_save_method == "foodsoft-db-tolerance") {  //, "foodsoft-db-article-state", "in-app"
             // use tolerance to save pickup information
             $this->update["tolerance"] =
@@ -107,20 +110,25 @@ class ArticleSubmitted extends Article
         }
     }
 
-    public function update_received()
+    public function update_received_if($condition)
     {
-        $this->update["result"] = $this->get("received");
+        if ($condition) {
+            $this->update["result"] = $this->received;
+            $this->add_changelog_received();
+        }
     }
 
-    public function update_received_weight()
+    public function update_received_weight_if($condition)
     {
-        $this->update["result"] = $this->received =
-            $this->get("weight_received") /
-            $this->get("unit_weight");
+        if ($condition) {
+            $this->update["result"] = $this->received =
+                $this->weight_received / $this->unit_weight;
+            $this->add_changelog_received_weight();
+        }
     }
 
 
-    public function add_note_received()
+    public function add_changelog_received()
     {
         $received_numbers = [$this->ordered];
         if ($this->is_different("received_initial", "ordered")) {
@@ -128,55 +136,45 @@ class ArticleSubmitted extends Article
         }
         $received_numbers[] = $this->get("received");
         $received_numbers = implode(" => ", $received_numbers);
-        $this->note_items[] = $received_numbers;
-        return $received_numbers;
+        $this->changelog_items[] = $received_numbers;
     }
 
-    public function add_note_received_weight()
+    public function add_changelog_received_weight()
     {
-        $weight_numbers = [$this->get("weight_ordered")];
+        $weight_numbers = [$this->weight_ordered];
         if ($this->is_different("weight_received_initial", "weight_ordered", 0)) {
             $weight_numbers[] = $this->get("weight_received_initial");
         }
-        $received = $this->get("weight_received");
+        $received = $this->weight_received;
         if ($this->single_weights) {
             $received .= " (" . implode("+", $this->single_weights) . ")";
         }
         $weight_numbers[] = $received;
         $weight_numbers = implode(" g => ", $weight_numbers) . " g";
-        $this->note_items[] = $weight_numbers;
-        return $weight_numbers;
+        $this->changelog_items[] = $weight_numbers;
     }
 
-    private function has_notes()
+    public function has_changelog_items()
     {
-        // if (count($this->note_items) > 0) {
-        //     print "<pre>";
-        //     print "note items for article $this->id: ";
-        //     print_r($this->note_items);
-        //     print "</pre>";
-        // }
-
-        return count($this->note_items) > 0;
+        return count($this->changelog_items) > 0;
     }
-    public function add_note_for_article()
+
+    public function add_user_note_if($condition)
     {
-        if (
-            $this->has_changed("note") ||
-            $this->has_notes() && $this->get("note")
-        ) {
+        if ($condition) {
             // alt:
             // $this->note_items[] = "@ " . $this->get("note") . " #" . $this->id;
 
             // neu: ... @123456 Kommentar zum Artikel
-            $this->note_items[] = "@" . $this->id . " " . $this->get("note");
+            $this->changelog_items[] = "@" . $this->id . " " . $this->note;
         }
     }
 
-    public function note_items()
+    public function changelog_entry()
     {
-        return $this->has_notes() ?
-            $this->name . ": " . implode(" ", $this->note_items) :
+        return $this->has_changelog_items() &&
+            ($this->app->comment_level >= 2 || $this->has_changed("note")) ?
+            $this->name . ": " . implode(" ", $this->changelog_items) :
             "";
     }
 
@@ -190,26 +188,27 @@ class ArticleSubmitted extends Article
     public function html_changes()
     {
         $html = "";
-        if ($this->has_notes()) { // has_notes -> changes were submitted
-            $html = "<p class='article'>";
-
-            $html .= $this->html_order_and_article_name();
-
-            $html .= "bestellt: " . implode(" ", $this->note_items) . " erhalten.<br>";
-
+        if ($this->has_changelog_items()) { // has_notes -> changes were submitted
             $price_ordered = $this->get("price") * $this->get("ordered");
             $price_received = $this->get("price") * $this->received;
             $price_difference = $price_received - $price_ordered;
-            $html .= "Preis: " .
+
+            $html = html_tag(
+                "p",
+                ["class" => "article"],  //"<p class='article'>";
+
+                $this->html_order_and_article_name() .
+
+                "bestellt: " . implode(" ", $this->changelog_items) . " erhalten.<br>" .
+
+                "Preis: " .
                 $this->app->local_currency_str($price_ordered) . " => " .
                 $this->app->local_currency_str($price_received) . " " .
-                "(" . $this->app->local_currency_str($price_difference, $plus_sign = true) . ")";
-            $html .= ".<br>";
+                "(" . $this->app->local_currency_str($price_difference, $plus_sign = true) . ")" .
+                ".<br>" .
 
-            if ($this->get("note"))
-                $html .= "Notiz zum Abrechnen: " . $this->get("note");
-
-            $html .= "</p>";
+                ($this->note ? "Notiz zum Abrechnen: " . $this->note : "")
+            );
 
         } elseif (
             $this->has_variable_weight &&
@@ -217,43 +216,37 @@ class ArticleSubmitted extends Article
             $this->is_equal("weight_ordered", "weight_received", 0)
         ) {
             // no different weight submitted!
-            $html = "<p class='article warning'>";
-
-            $html .= "<span class='info'>Achtung, du hast kein Gewicht eingegeben. " .
-                "Wenn das Gewicht so stimmt, kannst du diese Warnung ignorieren:</span><br>";
-
-            $html .= $this->html_order_and_article_name();
-
-            $html .= "bestellt: ";
-            if ($this->ordered > 1) {
-                $html .= $this->ordered . " x " . $this->get("unit_weight") . " g = ";
-            }
-            $html .= $this->get("weight_ordered");
-            $html .= ".<br>";
-
             $price_ordered = $this->get("price") * $this->get("ordered");
-            $html .= "Preis: " .
-                $this->app->local_currency_str($price_ordered);
-            $html .= ".<br>";
 
-            if ($this->get("note"))
-                $html .= "Notiz zum Abrechnen: " . $this->get("note");
+            $html = html_tag(
+                "p",
+                ["class" => ["article", "warning"]],    // <p class='article warning'>";
 
-            $html .= "</p>";
+                html_tag(
+                    "span",
+                    ["class" => "info"],
+                    "Achtung, du hast kein Gewicht eingegeben. " .
+                    "Wenn das Gewicht so stimmt, kannst du diese Warnung ignorieren:"
+                ) . "<br>" .
 
+                $this->html_order_and_article_name() .
+                "bestellt: " .
+                ($this->ordered > 1 ? $this->ordered . " x " . $this->unit_weight . " g = " : "") .
+                $this->weight_ordered . ".<br>" .
+
+                "Preis: " . $this->app->local_currency_str($price_ordered) . ".<br>" .
+
+                ($this->note ? "Notiz zum Abrechnen: " . $this->note : "")
+            );
         } elseif ($this->has_changed("note")) {
             // no changes in number or weight submitted, but note!
-            $html = "<p>";
-
-            $html .= $this->html_order_and_article_name();
-
-            $html .= "bestellt: " . $this->ordered;
-            $html .= " => " . $this->received . " erhalten.";
-            $html .= "<br>";
-
-            $html .= "Notiz zum Abrechnen: " . $this->get("note");
-
-            $html .= "</p>";
+            $html = html_tag(
+                "p",
+                [],
+                $this->html_order_and_article_name() .
+                "bestellt: " . $this->ordered . " => " . $this->received . " erhalten." . "<br>" .
+                "Notiz zum Abrechnen: " . $this->note
+            );
         }
         return $html;
     }

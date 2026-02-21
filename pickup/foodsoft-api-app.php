@@ -23,22 +23,20 @@ class FoodsoftApiApp extends FoodsoftApp
             $this->foodcoop_name = $this->api->foodcoop_name;
         }
 
-        if ($config["debug"] ?? false) {
-            print "<pre style='background-color: #EEE;'>";
-
+        $this->html_debug_begin();
+        if ($this->debug) {
             if ($config["use_local_foodsoft"] ?? false)
                 print "using local foodsoft installation at " . $this->api->foodsoft_url . " with date $this->time_now<br>";
             else
                 print "using foodsoft server at " . $this->api->foodsoft_url . "<br>";
 
-            print "test pickup classes: ";
-            print $this->username . " " . $this->ordergroup . " " . $this->ordergroup_id . "\n";
+            // print "test pickup classes: ";
+            // print $this->username . " " . $this->ordergroup . " " . $this->ordergroup_id . "\n";
 
             // print "group orders:";
             // print_r($pickup->group_orders);
-
-            print "</pre>";
         }
+        $this->html_debug_end();
     }
 
 
@@ -58,20 +56,23 @@ class FoodsoftApiApp extends FoodsoftApp
 
         $this->username = $data["user"]["name"] ?? null;
         $this->ordergroup = $data["user"]["ordergroup_name"] ?? null;
-        $this->ordergroup_id = intval($data["user"]["ordergroup_id"]); //?? NULL;
+        $this->ordergroup_id = $data["user"]["ordergroup_id"] ?? null;
         return $this->username;
     }
 
     public function has_current_user_ordergroup()
     {
-        // print "<pre class='disabled'>";
-        // var_dump($this->username);
+        $this->html_debug_begin();
+        $this->debug_var("username before get_foodsoft_user", $this->username);
+
         if (!$this->username) {
             $this->get_foodsoft_user();
         }
-        // var_dump($this->username);
-        // var_dump($this->ordergroup_id);
-        // print "</pre>";
+
+        $this->debug_var("username after get_foodsoft_user", $this->username);
+        $this->debug_var("ordergroup id", $this->ordergroup_id);
+        $this->html_debug_end();
+
         return $this->ordergroup_id != -1 && $this->ordergroup_id !== null;
     }
 

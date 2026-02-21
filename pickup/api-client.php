@@ -6,19 +6,26 @@ class ApiClient
 
     public $foodcoop_name;
     public $foodsoft_url;
-    private $authorize_url, $token_url, $callback_uri, $base_api_url;
-    private $client_id, $client_secret;
+    public $foodsoft_host;
+    private $authorize_url;
+    private $token_url;
+    private $callback_uri;
+    private $base_api_url;
+    private $client_id;
+    private $client_secret;
     public $access_token;
+    private $debug = TRUE;
 
     public function __construct($config)
     {
-        $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+        $url = $_SERVER['REQUEST_URI'];
+        $path = parse_url($url, PHP_URL_PATH);
         $foodcoop = basename($path);
         $this->foodcoop_name = $config["foodcoop_name"] ?? ucfirst($foodcoop);
-
         $foodsoft_url = $config["foodsoft_url"] ??
             "https://app.foodcoops.at/$foodcoop";
         $this->foodsoft_url = $foodsoft_url;
+        $this->foodsoft_host = parse_url($foodsoft_url, PHP_URL_HOST);
         $this->runs_on_local_server = $_SERVER["HTTP_HOST"] == "localhost";
         $this->http = $this->runs_on_local_server ? "http://" : "https://";
         $this->authorize_url = $foodsoft_url . "/oauth/authorize";
@@ -37,6 +44,12 @@ class ApiClient
             // print "Code found: $code\n";
             // exit;
             $access_token = $this->getAccessToken($code);
+            if (!$access_token) {
+                //print "No access token - exiting app.";token 
+                print "Code $code für access_token gesendet.\n";
+                print "Kein access_token für API erhalten - Anwendung beendet.";
+                exit();
+            }
             $this->uri_update_parameters(["code"], ["access_token=$access_token"]);
 
             // print ("Location: " . $this->callback_uri); exit;
@@ -120,19 +133,29 @@ class ApiClient
                 "redirect_uri=$this->callback_uri"
             ]),
         ));
+        // print "<pre>";
+        // print "CURLOPT_POSTFIELDS: " . implode("&", [
+        //     "grant_type=authorization_code",
+        //     "code=$authorization_code",
+        //     "redirect_uri=$this->callback_uri"
+        // ]) . "\n";
+
         $response = curl_exec($curl);
-        curl_close($curl);
+        // curl_close($curl);
+
+        //print_r($response);
 
         if ($response === false) {
             echo "Failed";
             echo curl_error($curl);
-            echo "Failed";
-        } elseif (json_decode($response)->error) {
-            echo "Error:<br />";
-            echo $authorization_code;
-            echo $response;
+            return;
         }
-        return json_decode($response)->access_token;
+        $response = json_decode($response);
+        if ($response->error ?? false) {
+            print $response->error . "\n";
+            print $response->error_description . "\n";
+        }
+        return $response->access_token ?? null;
     }
 
 
@@ -153,9 +176,11 @@ class ApiClient
             print "no response - foodsoft not running?";
             exit;
         }
+        // print "response:\n$response";
         $response = json_decode($response, true);
         // print ("response: ");
-        // print_r($response);
+        //print_r($response);
+        // var_dump($response);
         if (($response["error"] ?? "") == "invalid_token") {
             $this->getAuthorizationCode();
             exit;

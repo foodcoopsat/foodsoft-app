@@ -3,7 +3,7 @@ require_once "order.php";
 class OrderSubmitted extends Order
 {
     public $updates = [];
-    public $notes = [];
+    public $changelog = [];
     public function __construct($app, $id)
     {
         $this->app = $app;
@@ -12,13 +12,13 @@ class OrderSubmitted extends Order
         $this->date_end = $app->post["date"][$this->id];
         $this->is_closed = $app->post["is_closed"][$this->id];
         if ($app->realname != $app->username) {
-            $this->notes[] = "eingegeben von " . $app->realname;
+            $this->changelog[] = "eingegeben von " . $app->realname;
         }
     }
 
     public function add_update($article)
     {
-        $this->updates[$article->id] = $article->update; // update maybe empty array []
+        $this->updates[$article->id] = $article->update; // update is empty array if it has no updates!
     }
 
     public function updates()
@@ -27,20 +27,21 @@ class OrderSubmitted extends Order
     }
 
 
-    public function add_note_items($article)
+    public function add_changelog_entry($article)
     {
-        $this->notes[] = $article->note_items();
+        if ($this->app->comment_level >= 1)
+            $this->changelog[] = $article->changelog_entry();
     }
-    public function notes()
+    public function changelog()
     {
-        return implode("\n", array_filter($this->notes));
+        return implode("\n", array_filter($this->changelog));
     }
 
     public function submit_updates()
     {
         $updates = [
             "updates" => $this->updates(),
-            "comment" => $this->notes()
+            "comment" => $this->changelog()
         ];
 
         if ($updates["updates"] || $updates["comment"]) {

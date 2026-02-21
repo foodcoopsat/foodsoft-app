@@ -35,6 +35,7 @@ class DistributeApp extends FoodsoftApiApp
         if (!$this->order_ids) {
             $this->html_distribute_preselect();
         } else {
+            $this->load_protocolls();
             $this->html_distribute_form();
         }
         $this->html_footer();
@@ -45,7 +46,6 @@ class DistributeApp extends FoodsoftApiApp
         if ($this->action == "ajax-write") {
             $this->save_protocoll($this->get["ajax-data"]);
         } elseif ($this->action == "ajax-read") {
-            // ... handle ajax read 
             $from_event = $this->get['from_event'];
             $n_tries = 0;
             do {

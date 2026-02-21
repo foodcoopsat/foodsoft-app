@@ -58,8 +58,9 @@ class FoodsoftApp
         $this->config = $config;
         $this->decimal_separator = $config["decimal_separator"] ?? ",";
         $this->user_str_separator = $config["user_str_separator"] ?? "|";
-        $this->time_now = $config["time_now"] ?? "today";
+        $this->time_now = $config["time_now"] ?? "now"; // "today"
         $this->n_weeks = $this->config["n_weeks"] ?? 5;
+        $this->debug = $config["debug"] ?? false;
 
 
         $post_get = array_merge($this->post, $this->get);
@@ -142,7 +143,39 @@ class FoodsoftApp
         );
     }
 
+    public function html_debug_begin()
+    {
+        if ($this->debug)
+            print "<pre style='background-color: #EEE;'>";
+    }
 
+    public function html_debug_end()
+    {
+        if ($this->debug)
+            print "</pre>";
+    }
+
+    public function debug_var($var_name, $var = "no-var-specified")
+    {
+        if ($this->debug) {
+            if ($var == "no-var-specified") {
+                $var = eval ("$" . $var_name);
+            }
+            print "$var_name: ";
+            if (is_array($var))
+                print_r($var);
+            else
+                var_dump($var);
+        }
+    }
+    public function debug_text($text, $newline = true)
+    {
+        if ($this->debug) {
+            print "$text";
+            if ($newline)
+                print "\n";
+        }
+    }
     public function html_select_user($addressee, $skip_users_without_ordergroup)
     {
         if ($this->was_ordergroup_selected || $this->has_current_user_ordergroup()) {
@@ -192,15 +225,17 @@ class FoodsoftApp
         // $table rows can have optional entries for style classes and headings
         // data format is set according to keys ("price", ...) and data types (numbers, strings)
 
+        // generate toc if headings in table
         $toc = [];
+        $i = 0;
         foreach ($table as $row) {
             if ($row["heading"] ?? false) {
-                $i = count($toc);
-                $toc[] = html_tag("a", ["href" => "#h$i"], $row["heading"]);
+                $toc[] = html_tag("a", ["href" => "#h" . $i++], $row["heading"]);
             }
         }
         print html_list($toc);
 
+        // print table
         $table_start = " <table> <tr><th>" . implode("</th><th>", array_values($headers)) . "</th></tr>\n";
         $table_end = "</table>";
 
@@ -254,13 +289,15 @@ class FoodsoftApp
     }
     public function get_foodsoft_users($skip_users_without_ordergroup)
     {
-        // to be overwritten by inherited class if needed
+        // to be overwritten by inherited class 
+        // needs access fo foodsoft e.g. via API 
         $this->users = [];
     }
 
-    public function load_article_pickup_states()
+    public function load_article_pickup_states($ordergroup)
     {
-        foreach ($this->load_data("pickup", "states", true) as $entry) {
+        // $ordergroup: "current" or "all"
+        foreach ($this->load_data("pickup", "states", $ordergroup) as $entry) {
             $this->articles_pickedup[$entry["id"]] = [
                 "pickedup" => $entry["pickedup"],
                 "date" => $entry["date"]
@@ -283,11 +320,16 @@ class FoodsoftApp
 
     // --- data and protocoll functions --------------------------------
 
-    public function data_filename($app_name, $dir, $week = 0, $ordergroup = false)
+    public function data_filename($app_name, $dir, $week = 0, $include_ordergroup = "none")
     {
+        $ordergroup_filename_items = [
+            "all" => "-*",
+            "current" => sprintf("-%04d", $this->ordergroup_id),
+            "none" => "",
+        ];
         return $app_name . "/$dir/" .
             date("Y/Y-W", strtotime("-$week weeks")) .
-            ($ordergroup ? ($ordergroup === "*" ? "-*" : sprintf("-%04d", $this->ordergroup_id)) : "") .
+            $ordergroup_filename_items[$include_ordergroup] .
             ".txt";
     }
 
@@ -302,9 +344,15 @@ class FoodsoftApp
         return [];
     }
 
-    public function save_data($dir, $data, $ordergroup = false)
+    public function save_data($dir, $data, $include_ordergroup = "none")
     {
-        $path = $this->data_filename($this->app_name, $dir, 0, $ordergroup);
+        $this->html_debug_begin();
+
+        $path = $this->data_filename($this->app_name, $dir, 0, $include_ordergroup);
+        if ($this->debug) {
+            print "save_data to $path\n";
+            print_r($data);
+        }
         $dir = dirname($path);
         if (!is_dir($dir)) {
             print html_tag(
@@ -334,23 +382,29 @@ class FoodsoftApp
 
         flock($file, LOCK_UN);
         fclose($file);
+
+        $this->html_debug_end();
+
         return true;
     }
-    public function save_protocoll()
+    public function save_protocoll($protocoll_data = null)
     {
-        return $this->save_data($this->protocoll_dir, $this->protocoll);
+        if ($protocoll_data === null)
+            $protocoll_data = $this->protocoll;
+        return $this->save_data($this->protocoll_dir, $protocoll_data);
     }
 
-    public function load_data($app_name, $dir, $ordergroup)
+    public function load_data($app_name, $dir, $include_ordergroup)
     {
-        print "<pre class='disabled'>";
+        $this->html_debug_begin();
+
         $data = [];
         for ($week = $this->n_weeks - 1; $week >= 0; $week--) {
-            $filename = $this->data_filename($app_name, $dir, $week, $ordergroup);
-            if ($ordergroup === "*") {
+            $filename = $this->data_filename($app_name, $dir, $week, $include_ordergroup);
+            if ($include_ordergroup === "all") {
                 // load files from all ordergroups
                 foreach (glob($filename) as $filename) {
-                    print "loading*:   $filename ...\n";
+                    $this->debug_text("loading*:   $filename ...");
                     $file = fopen($filename, "r");
                     while (($line = fgets($file)) !== false) {
                         $data[] = json_decode($line, true);
@@ -359,32 +413,34 @@ class FoodsoftApp
                 }
             } else { // no or single ordergroup 
                 if (file_exists($filename)) {
-                    print "loading:    $filename ...\n";
+                    $this->debug_text("loading:    $filename ...");
                     $file = fopen($filename, "r");
                     while (($line = fgets($file)) !== false) {
                         $data[] = json_decode($line, true);
                     }
                     fclose($file);
                 } else {
-                    print "not exists: $filename ...\n";
+                    $this->debug_text("not exists: $filename ...");
                 }
             }
         }
         //print_r($data);
-        print "</pre>";
+
+        $this->html_debug_end();
+
         return $data;
     }
 
     public function load_protocolls()
     {
-        print "<pre class='disabled'>";
+        $this->html_debug_begin();
         $this->protocoll = [];
         for ($week = $this->n_weeks - 1; $week >= 0; $week--) {
             $this->protocoll_last_modified = null;
             $this->protocoll = array_merge($this->protocoll, $this->load_protocoll($week));
         }
         // print_r($this->protocoll);
-        print "</pre>";
+        $this->html_debug_end();
     }
     public function load_protocoll($week = 0, $start_index = 0)
     {
@@ -406,7 +462,7 @@ class FoodsoftApp
             return []; // no updates available since last call
         }
         $protocoll = [];
-        print "Loading protocoll from file: $filename";
+        $this->debug_text("Loading protocoll from file: $filename", false);
         if (file_exists($filename)) {
             $this->protocoll_last_modified = filemtime($filename);
             $file = fopen($filename, "r");
@@ -416,11 +472,11 @@ class FoodsoftApp
                     $protocoll[] = $line;
             }
             fclose($file);
+            $this->debug_text("done.");
         } else {
             // return empty protocoll array
-            print " (file does not exist yet)";
+            $this->debug_text("file does not exist yet!");
         }
-        print "\n";
         return $protocoll;
     }
 
@@ -506,7 +562,7 @@ class FoodsoftApp
     public function date_str($datetime = "now", $with_time = False)
     {
         if ($datetime == "now") {
-            print "time now: " . $this->time_now . "<br>";
+            // print "time now: " . $this->time_now . "<br>";
             $datetime = date_create($this->time_now);
         }
         return strtr(
