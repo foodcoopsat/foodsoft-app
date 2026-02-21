@@ -1,4 +1,4 @@
-# Foodsoft Pickup App
+# Foodsoft Pickup Apps
 
 Intended to be installed at https://pickup.foodcoops.at/
 
@@ -13,9 +13,27 @@ The index.php file in this folder has to contain the oauth access credentials fo
 ## Local Test
 The app can be tested in combination with a local foodsoft installation.
 
-Hier vorab ein paar Eigenschaften der App, die überprüft und eventuell angepasst werden sollten, bevor sie in einer Foodcoop eingesetzt wird. 
 
-# Anleitung
+
+# Abhol-App (pickup)
+
+Die Abholapp ist eine Smartphone-taugliche App für die Abholung der Bestellungen in Foodcoops, die mit der Foodsoft gekoppelt ist. Sie erspart das Ausdrucken der **Bestelllisten** (Gruppen-PDF) indem die Bestellungen am eigenen Smartphone oder auf einem fix im Lagerraum installieren Smartphone oder Tablet angezeigt, und die einzelnen Artikel beim Abholen abgehakt werden können. Weiters ermöglicht die App es, **Abweichungen** 
+- bei Stückzahl (insbesondere auch nicht gelieferte Artikel) und 
+- bei Gewicht (z.B. Krautkopf Stück bestellt mit variablem Gewicht, tatsächliche Preis pro geliefertem Gewicht)
+
+einzugeben und in die Foodsoft zu übertragen, damit diese Abweichungen bei der Abrechnung berücksichtigt werden. 
+
+Dieses Video stammt aus der Anfangszeit von der Einführung in unserer Foodcoop, aber im Wesentlichen beschreibt es immer noch die Anwendung der App:
+https://youtu.be/r9Pfzuuu6Ko
+
+Die App ist in unserer  Foodcoop seit mittlerweile 4 Jahren erfolgreich im Einsatz (Stand 2026,) mit dieser Version soll die App auch für andere FoodCoops zur Verfügung gestellt werden.
+
+## Voraussetzungen 
+- Foodsoft wird verwendet zum Bestellen und 
+- Abrechnung erfolgt über die Foodsoft: Mitglieder laden in der Foodsoft ihr Bestellguthaben auf, Bestellungen werden über Foodsoft abgerechnet, indem vom Guthaben der Mitglieder abgebucht wird. bei einer manuellen Abrechnung über Papier listen macht die App wenig Sinn.
+
+Es muss dazu nichts installiert werden, die App wird am IG Server laufen (anders als im Video, wo die App noch am Webserver unserer Foodcoop läuft). 
+
 
 ## Angezeigte Bestellungen
 In der App werden folgende Bestellungen angezeigt:
@@ -33,4 +51,32 @@ Bei bereits abgerechneten Bestellungen können keine Änderungen in Stückzahl o
 - Bei Artikel ohne Gewicht oder mit gesperrtem Gewicht kann nur die Stückzahl verändert werden.
 
 ## Lieferantin Eigenschaften
-...
+Am Ende des Notiz Feldes einer Lieferantin in der Foodsoft können Einstellungen für diese eingegeben werden (JSON Format): 
+
+`@pickup:{"setting1":value1, ...}`
+
+Eigenschaften: 
+- `"ignore_weight":true` wenn für alle Artikel der Lieferantin das Gewicht nicht anpassbar sein sollen
+
+Beispiel: 
+
+`@pickup:{"ignore_weight":true}`
+
+
+
+## Globale Eigenschaften 
+
+`$config` Array im `index.php` der jeweiligen Foodcoop:
+- n_weeks: Anzahl der Wochen von jetzt an zurück, für die Bestellungen angezeigt werden sollen. Standardwert: 5
+- exclude_usernames: Array von Strings, wenn sie in Benutzernamen vorkommen, werden sie nicht zur Auswahl angezeigt
+- inactive_user: String, wenn er in Benutzername vorkommt, wird der Benutzer nicht tritt Auswahl angezeigt, Standardwert: "ZZ"
+- `variable_weight`: String, der in Artikelnamen vorkommt, wenn das Gewicht variabel ist. Standard Wert: `"*"`
+- `locked_weight`: Array von Strings, die in der Einheit eines Artikels angeben, dass das Gewicht nicht anpassbar ist. Standardwert:      `["#", "Glas"]`
+
+Optionen für Entwicklung: 
+- debug: Standardwert false;
+- comment_level: 0: save no order comments, 1: only article notes, 2: for all changes, Standardwert 1
+- use_local_foodsoft: Standardwert false
+
+# Einkistln App (distribute)
+Die Einkistln App ist zum Aufteilen der Bestellungen auf die Foodcoop Mitglieder im Lagerraum auf Tablets oder Smartphones. Bestelllisten müssen nicht mehr ausgedruckt werden. Abweichungen der Lieferung von der Bestellung in Stück oder Gewicht können eingegebenen und in die Foodsoft übertragen werden. Es können mehrere Geräte gleichzeitig verwendet werden, alle Eingaben werden zwischen den Geräten synchronisiert.
