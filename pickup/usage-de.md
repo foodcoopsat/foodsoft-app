@@ -13,9 +13,9 @@ Die App ist in unserer  Foodcoop seit mittlerweile 4 Jahren erfolgreich im Einsa
 
 ## Voraussetzungen 
 - Foodsoft wird verwendet zum Bestellen und 
-- Abrechnung erfolgt über die Foodsoft: Mitglieder laden in der Foodsoft ihr Bestellguthaben auf, Bestellungen werden über Foodsoft abgerechnet, indem vom Guthaben der Mitglieder abgebucht wird. bei einer manuellen Abrechnung über Papier listen macht die App wenig Sinn.
+- Abrechnung erfolgt über die Foodsoft: Mitglieder laden in der Foodsoft ihr Bestellguthaben auf, Bestellungen werden über Foodsoft abgerechnet, indem vom Guthaben der Mitglieder abgebucht wird. Bei einer manuellen Abrechnung über Papierlisten macht die App wenig Sinn.
 
-Es muss dazu nichts installiert werden, die App wird am IG Server laufen (anders als im Video, wo die App noch am Webserver unserer Foodcoop läuft). 
+Es muss dazu nichts installiert werden, die App läuft am IG Server (anders als im Video, wo die App noch am Webserver unserer Foodcoop läuft). 
 
 
 ## Angezeigte Bestellungen
