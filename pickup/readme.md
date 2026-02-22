@@ -67,16 +67,20 @@ Beispiel:
 ## Globale Eigenschaften 
 
 `$config` Array im `index.php` der jeweiligen Foodcoop:
-- n_weeks: Anzahl der Wochen von jetzt an zurück, für die Bestellungen angezeigt werden sollen. Standardwert: 5
-- exclude_usernames: Array von Strings, wenn sie in Benutzernamen vorkommen, werden sie nicht zur Auswahl angezeigt
-- inactive_user: String, wenn er in Benutzername vorkommt, wird der Benutzer nicht tritt Auswahl angezeigt, Standardwert: "ZZ"
+- `n_weeks`: Anzahl der Wochen von jetzt an zurück, für die Bestellungen angezeigt werden sollen. Standardwert: 5
+- `exclude_usernames`: Array von Strings von Benutzernamen die nicht zur Auswahl angezeigt werden sollen
+- `inactive_user`: String, wenn er in Benutzername vorkommt, wird der Benutzer nicht tritt Auswahl angezeigt, Standardwert: "ZZ"
 - `variable_weight`: String, der in Artikelnamen vorkommt, wenn das Gewicht variabel ist. Standard Wert: `"*"`
 - `locked_weight`: Array von Strings, die in der Einheit eines Artikels angeben, dass das Gewicht nicht anpassbar ist. Standardwert:      `["#", "Glas"]`
 
 Optionen für Entwicklung: 
-- debug: Standardwert false;
-- comment_level: 0: save no order comments, 1: only article notes, 2: for all changes, Standardwert 1
-- use_local_foodsoft: Standardwert false
+- `debug`: Standardwert false;
+- `comment_level`:
+  - 0: save no order comments,
+  - 1: only article notes,
+  - 2: for all changes,
+  - Standardwert 1
+- `use_local_foodsoft`: Standardwert false
 
 # Einkistln App (distribute)
 Die Einkistln App ist zum Aufteilen der Bestellungen auf die Foodcoop Mitglieder im Lagerraum auf Tablets oder Smartphones. Bestelllisten müssen nicht mehr ausgedruckt werden. Abweichungen der Lieferung von der Bestellung in Stück oder Gewicht können eingegebenen und in die Foodsoft übertragen werden. Es können mehrere Geräte gleichzeitig verwendet werden, alle Eingaben werden zwischen den Geräten synchronisiert.
