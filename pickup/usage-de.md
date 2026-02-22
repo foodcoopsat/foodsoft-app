@@ -66,4 +66,4 @@ Optionen für Entwicklung:
 - `use_local_foodsoft`: Standardwert false
 
 # Einkistln App (distribute)
-Die Einkistln App ist zum Aufteilen der Bestellungen auf die Foodcoop Mitglieder im Lagerraum auf Tablets oder Smartphones. Bestelllisten müssen nicht mehr ausgedruckt werden. Abweichungen der Lieferung von der Bestellung in Stück oder Gewicht können eingegebenen und in die Foodsoft übertragen werden. Es können mehrere Geräte gleichzeitig verwendet werden, alle Eingaben werden zwischen den Geräten synchronisiert.
+Die Einkistln App ist zum Aufteilen der Bestellungen auf die Foodcoop Mitglieder im Lagerraum auf Tablets oder Smartphones. Bestelllisten (Artikel-PDF) müssen nicht mehr ausgedruckt werden. Abweichungen der Lieferung von der Bestellung in Stück oder Gewicht können eingegeben und in die Foodsoft übertragen werden. Es können mehrere Geräte gleichzeitig verwendet werden, alle Eingaben werden zwischen den Geräten synchronisiert.
