@@ -36,6 +36,9 @@ class ApiClient
         $this->client_id = $config["client_id"];
         $this->client_secret = $config["client_secret"];
 
+        $this->debug = $config["debug"] ?? false;
+        // print "API Debug: " . ($this->debug ? "true" : "false");
+
         // print "callback_uri: " . $this->callback_uri;
         // exit;
 
@@ -46,6 +49,7 @@ class ApiClient
             $access_token = $this->getAccessToken($code);
             if (!$access_token) {
                 //print "No access token - exiting app.";token 
+                print "<pre style='background-color: #EEE;>";
                 print "Code $code für access_token gesendet.\n";
                 print "Kein access_token für API erhalten - Anwendung beendet.";
                 exit();
@@ -64,7 +68,11 @@ class ApiClient
             $this->getAuthorizationCode();
             exit;
         }
-        // print "Access Token found: $this->access_token\n";
+
+        if ($this->debug) {
+            print "<pre style='background-color: #EEE;'>" .
+                "Debug mode active. Received access token from query-string for API access: $this->access_token\n</pre>";
+        }
     }
 
 
@@ -159,8 +167,14 @@ class ApiClient
     }
 
 
-    public function getResource($api_url, $parameters = [])
+    public function getResource($api_url)
     {
+        // parameters are submitte in the  query string of the apr_url!
+        if ($this->debug) {
+            print "<pre style='background-color: #EEE;'>getResource('$api_url'): \n";
+            // print_r($parameters);
+            print "</pre>";
+        }
         $curl = curl_init();
         curl_setopt_array($curl, [
             CURLOPT_URL => $this->base_api_url . $api_url,
@@ -170,22 +184,51 @@ class ApiClient
             // CURLOPT_POSTFIELDS => json_encode($parameters),
         ]);
         $response = curl_exec($curl);
-        curl_close($curl);
+        // curl_close($curl);
 
-        if (!$response) { // probably invalid token!
+        if (!$response) {
             print "no response - foodsoft not running?";
             exit;
+        } elseif (is_string($response) && str_contains($response, "redirected")) {
+            if ($this->debug) {
+                print "<pre style='background-color: #EEE;'>\n";
+                print "Response: $response\n";
+                print $this->base_api_url . $api_url . " kann nicht erreicht werden.\n";
+                print "API pickup_controller.rb " .
+                    "auf $this->foodsoft_host nicht installiert?\n";
+                print "Abbruch!\n";
+                exit();
+            }
+        } else {
+            // print "response:\n$response";
+            $response = json_decode($response, true);
+            // print ("response: ");
+            // print_r($response);
+            // var_dump($response);
+            if (($response["error"] ?? "") == "invalid_token") {
+                if ($this->debug) {
+                    print "<pre style='background-color: #EEE;'>";
+                    print "=> ";
+                    print_r($response);
+                    print "Debug Modus: Abbruch, da schon Text ausgegeben wurde und daher kein redirect mehr möglich ist.";
+                    print "Sonst wird automatisch ein neuer Token angefordert.\n";
+                    exit();
+                }
+            } else {
+                // valid token and response
+                if ($this->debug) {
+                    print "<pre style='background-color: #EEE;'>";
+                    print "successful => ";
+                    print_r($response);
+                    print "</pre>";
+                }
+                return $response;
+            }
         }
-        // print "response:\n$response";
-        $response = json_decode($response, true);
-        // print ("response: ");
-        //print_r($response);
-        // var_dump($response);
-        if (($response["error"] ?? "") == "invalid_token") {
-            $this->getAuthorizationCode();
-            exit;
-        }
-        return $response;
+
+        // invalid token: get new token
+        $this->getAuthorizationCode();
+        exit;
     }
 
     public function updateResource(string $api_url, array $updates, $debug = FALSE)
@@ -205,11 +248,11 @@ class ApiClient
 
         ]);
 
-        if ($debug)
-            print "updateResource() API url: $this->base_api_url$api_url, Authorization: Bearer {$this->access_token}\n";
+        if ($this->debug || $debug)
+            print "<pre>updateResource() API url: $this->base_api_url$api_url, Authorization: Bearer {$this->access_token}\n</pre>";
 
         $response = curl_exec($curl);
-        curl_close($curl);
+        // curl_close($curl);
         return json_decode($response, true);
     }
 

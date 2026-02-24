@@ -166,7 +166,17 @@ class ArticleSubmitted extends Article
             // $this->note_items[] = "@ " . $this->get("note") . " #" . $this->id;
 
             // neu: ... @123456 Kommentar zum Artikel
-            $this->changelog_items[] = "@" . $this->id . " " . $this->note;
+
+
+            if ($this->app->comment_level >= 1) {
+                $this->changelog_items[] = "@" . $this->id . " " . $this->note;
+            } else {
+                $this->app->articles_pickedup[] = [
+                    "id" => $this->id,
+                    "note" => $this->note,
+                    "date" => date("Y-m-d H:i:s")
+                ];
+            }
         }
     }
 

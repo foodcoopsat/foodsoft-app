@@ -44,6 +44,18 @@ class OrderPickup extends Order
             print " eingeben!</p>";
 
         }
+        if ($this->app->show_only_received_orders) {
+            if (!$this->is_received) {
+                print html_tag(
+                    "p",
+                    ["class" => ["info", $order_class]],
+                    "Bestellung ist noch nicht freigegeben. " .
+                    "Bestellt wurde: " .
+                    implode(", ", $this->article_names())
+                );
+                return;
+            }
+        }
 
         $this->html_hidden_input("producer", $this->producer);
         $this->html_hidden_input("date", $this->date_pickup);
@@ -52,6 +64,15 @@ class OrderPickup extends Order
         foreach ($this->articles as $article_data) {
             $this->create_article($article_data)->html_form();
         }
+    }
+
+    public function article_names()
+    {
+        $names = [];
+        foreach ($this->articles as $article_data) {
+            $names[] = $this->create_article($article_data)->name;
+        }
+        return $names;
     }
 
 

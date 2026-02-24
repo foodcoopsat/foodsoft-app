@@ -26,6 +26,28 @@ function html_button($text, $id, $on_click, $visible = true)
     );
 }
 
+function html_checkbox($name, $value, $id, $onchange = "", $large = false, $checked = false)
+{
+    if ($large) {
+        $px = 30;
+        $style =
+            "width: " . $px . "px; " .
+            "height: " . $px . "px; " .
+            "vertical-align: -40%; ";
+    } else
+        $style = "";
+
+    return html_tag("input", [
+        "type" => "checkbox",
+        "name" => $name,
+        "value" => $value,
+        "id" => $id,
+        "style" => $style,
+        "onchange" => $onchange,
+        $checked ? "checked" : ""
+    ]);
+}
+
 function html_list($items, $ordered = false)
 {
     if (!$items)

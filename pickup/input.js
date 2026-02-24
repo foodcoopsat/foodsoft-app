@@ -62,8 +62,6 @@ function increment(id, xmax = 9999) {
 
     if (e.onchange instanceof Function)
         e.onchange();
-    if (x0 == 0)
-        disable(id, false);
 }
 
 function decrement(id, xmin = 0) {
@@ -76,8 +74,6 @@ function decrement(id, xmin = 0) {
     e.value = x;
     if (e.onchange instanceof Function)
         e.onchange();
-    if (x == 0)
-        disable(id, true);
 }
 
 function zero(id, button) {
@@ -97,7 +93,6 @@ function zero(id, button) {
             console.log("zero >0 > onchange");
             e.onchange();
         }
-        disable(id, true);
         //console.log("disable " + id + " => " + id.replace("null","reset"));
         document.getElementById(id + "-reset").disabled = true;
     } else if (button) {
@@ -109,7 +104,6 @@ function zero(id, button) {
             console.log("zero ==0 > onchange");
             e.onchange();
         }
-        disable(id, false);
         document.getElementById(id + "-reset").disabled = false;
     } else {
         e.setAttribute('data-action', '');
@@ -134,3 +128,4 @@ function my_reset(id, value) {
         console.log("reset > onchange");
     }
 }
+

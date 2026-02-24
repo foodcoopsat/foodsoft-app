@@ -20,9 +20,11 @@ Es muss dazu nichts installiert werden, die App läuft am IG Server (anders als 
 
 ## Angezeigte Bestellungen
 In der App werden folgende Bestellungen angezeigt:
-- **beendete Bestellungen**, unabhängig davon, ob "Lieferung in Empfang nehmen" ausgeführt wurde (Status `received`) oder die Bestellung abgerechnet wurde (Status `closed`). und unabhängig davon, ob sie eine Abholdatum haben, wobei Bestellungen ohne Abholdatum nicht empfehlenswert sind, weil dann nicht klar ist, wann sie abzuholen sind bzw. ab wann Artikel als nicht geliefert eingetragen werden sollen.
-- **Lager-Bestellungen**, unabhängig ihres Status (offen, beendet, ...), wobei dort nur Abweichungen eingegeben werden können, wenn die Bestellung geschlossen ist.
-- **Offene Bestellungen ohne Abholdatum**: wir verwenden das in unserer Foodcoop nur für die Leergut-Rückgabe-Bestellung.
+- **beendete Bestellungen mit Abholdatum**, wahlweise 
+  - unabhängig davon, ob "Lieferung in Empfang nehmen" ausgeführt wurde (Standard), oder 
+  - nur wenn "Lieferung in Empfang nehmen" ausgeführt wurde (Status `received`, globale Einstellung `show_only_received_orders`)
+- **Lager-Bestellungen**, unabhängig ihres Status (offen, beendet, ...), wobei in der App nur Abweichungen eingegeben werden können, wenn die Bestellung geschlossen ist.
+- **Offene Bestellungen ohne Abholdatum**: wir verwenden das in unserer Foodcoop nur für die Leergut-Rückgabe-Bestellung. 
 
 Bei bereits abgerechneten Bestellungen können keine Änderungen in Stückzahl oder Gewicht mehr eingegeben werden. Bei noch offenen Bestellungen können derzeit ebenfalls keine Änderungen in Stückzahl oder Gewicht eingegeben werden, es wird aber ein Link auf die Foodsoft-Bestellung angezeigt, wo die Bestellung bearbeitet werden kann.
 
@@ -51,6 +53,7 @@ Beispiel:
 
 `$config` Array im `index.php` der jeweiligen Foodcoop:
 - `n_weeks`: Anzahl der Wochen von jetzt an zurück, für die Bestellungen angezeigt werden sollen. Standardwert: 5
+- `show_only_received_orders`: wenn `true`, werden nur Bestellungen angezeigt, bei denen "Lieferung in Empfang nehmen" ausgeführt wurde. Default: `false` 
 - `exclude_usernames`: Array von Strings von Benutzernamen die nicht zur Auswahl angezeigt werden sollen
 - `inactive_user`: String, wenn er in Benutzername vorkommt, wird der Benutzer nicht tritt Auswahl angezeigt, Standardwert: "ZZ"
 - `variable_weight`: String, der in Artikelnamen vorkommt, wenn das Gewicht variabel ist. Standard Wert: `"*"`

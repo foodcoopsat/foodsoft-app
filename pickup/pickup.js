@@ -144,6 +144,7 @@ function update_received(id) {
     if (received !== null) {
         const article = document.getElementById("p-article-" + id);
         set_class(article, 'changed', received.value != received.getAttribute('data-ordered'));
+        set_class(article, 'disabled', received.value == 0);
     }
 }
 
@@ -152,6 +153,7 @@ function update_weight(id) {
     if (weight_received !== null) {
         const article = document.getElementById("p-article-" + id);
         set_class(article, 'changed', weight_received.value != weight_received.getAttribute('data-weight-ordered'));
+        set_class(article, 'disabled', weight_received.value == 0);
     }
 }
 

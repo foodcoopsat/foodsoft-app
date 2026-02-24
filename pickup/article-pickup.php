@@ -133,7 +133,7 @@ class ArticlePickup extends Article
             return;
         }
 
-        if ($this->has_variable_weight) {
+        if ($this->has_adaptable_weight) {
             if ($this->adapted_received)
                 print "erhalten: " . $this->received;
             print "<br>";
@@ -141,9 +141,9 @@ class ArticlePickup extends Article
             $this->html_weight_input();
         } else {
             $this->html_number_input();
-            if ($this->has_adaptable_weight) {
-                $this->html_optional_weight_input();
-            }
+            // if ($this->has_adaptable_weight) {
+            //     $this->html_optional_weight_input();
+            // }
         }
 
         if ($this->unit_weight > 0) {
@@ -245,7 +245,7 @@ class ArticlePickup extends Article
         $input->set_class("number");
         $input->set_update_function("update_received(" . $this->id . ")");
         $input->set_null_button($this->text_not_received, $this->reset_received);
-        $input->set_article_name(sprintf("%d x %s", $this->reset_received, $this->name));
+        $input->set_article_name(sprintf("%g x %s", $this->reset_received, $this->name));
         //$input->set_buttons_on_both_sides();
         $input->print();
     }

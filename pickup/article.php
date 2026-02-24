@@ -59,7 +59,8 @@ class Article
             $this->order->has_adaptable_weights &&
             !$this->has_locked_weight;
 
-        $this->note = $order->article_comments[$this->id] ?? "";
+        $this->note = $order->article_comments[$this->id] ??
+            $this->app->article_notes[$this->id] ?? "";
     }
 
 

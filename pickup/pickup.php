@@ -12,6 +12,7 @@ class PickupApp extends FoodsoftApiApp
 
     public $login_user;
     public $credit;
+    public $show_only_received_orders;
     public $n_pickedup_initially = 0;
     public $articles_not_pickedup = [];
     public $comment_level;
@@ -47,6 +48,7 @@ class PickupApp extends FoodsoftApiApp
     public function __construct($config)
     {
         parent::__construct($config);
+        $this->show_only_received_orders = $config["show_only_received_orders"] ?? false;
 
         if ($this->action == "protocoll") {
             $this->title = "Protokoll Abholen";

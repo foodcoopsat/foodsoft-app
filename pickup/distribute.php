@@ -7,46 +7,68 @@ require_once("html-helpers.php");
 class DistributeApp extends FoodsoftApiApp
 {
     public $order_ids;
+    public $edit_received;
     public $ajax_timeout = 100;
 
     public function needs_api()
     {
         return !in_array($this->action, ["ajax-write", "ajax-read"]);
     }
+
     public function __construct($config)
     {
         parent::__construct($config);
 
         if (str_contains($this->action, "ajax")) {
-            $this->handle_ajax();
+            $this->handle_ajax($this->action);
             exit;
         }
 
         $this->title = "Einkistln";
         $this->order_ids = $this->post["order_ids"] ?? [];
+        $this->edit_received = $this->post["edit_received"] ?? true;
 
-        $this->html_header([
-            "distribute.js",
-            "input.js",
-        ], [
-            #"onload" => "init()",
-        ]);
-        $this->html_title();
         if (!$this->order_ids) {
+            $this->html_header([], []);
+            $this->html_title();
             $this->html_distribute_preselect();
         } else {
+            $this->html_header([
+                "../distribute.js",
+                "../input.js",
+            ], [
+                "onload" => "start_update('$this->username', $this->ajax_timeout)",
+            ]);
+            $this->html_title();
             $this->load_protocolls();
             $this->html_distribute_form();
+
+            print '    <div class="searchbar"
+                            style="position: fixed; bottom: 0; width: 100%; padding: 16px 8px; background-color: #EEE; z-index: 999;">
+                            <div style="float:left">
+                                <input type="text" id="searchtext" placeholder="Suchtext..." name="search" style=""
+                                    onChange="window.find(this.value, false, false, true);">
+                                <button type="button"
+                                    onClick="window.find(document.getElementById(\"searchtext\").value, false, false, true);">&#128269;</button>
+                                <!-- button type="button" onClick="window.ajax_idle_time=0;">sync</button -->
+                            </div>
+                            <div style="float:right">
+                                <span id="seconds"></span>
+                                <span id="sync-status"></span> &nbsp;&nbsp;&nbsp;
+                            </div>
+                        </div>
+                        <div style="padding-bottom: 100px;"> <!-- margin-bottom -->';
         }
         $this->html_footer();
     }
 
-    public function handle_ajax()
+    public function handle_ajax($action)
     {
-        if ($this->action == "ajax-write") {
-            $this->save_protocoll($this->get["ajax-data"]);
-        } elseif ($this->action == "ajax-read") {
-            $from_event = $this->get['from_event'];
+        if ($action == "ajax-write") {
+            $ajax_data = $this->get["ajax-data"]; //json encoded array
+            $this->save_protocoll($ajax_data);
+        } elseif ($action == "ajax-read") {
+            $from_event = $this->get['from_event'] ?? 0;
             $n_tries = 0;
             do {
                 $new_events = $this->load_protocoll_json(0, $from_event);
@@ -103,27 +125,28 @@ class DistributeApp extends FoodsoftApiApp
         foreach ($this->orders_by_date as $date_str => $order_indices) {
             # $date_index = $this->orders_by_date_index[$date_str];
             $class = $this->orders_days_in_past[$date_str] > 0 ? "past-order" : "";
-            print "<h3 class='$class'>" . $date_str . "</h2>\n";
+            print html_tag(
+                "h3",
+                ["class" => $class],
+                $date_str
+            );
             foreach ($order_indices as $i) {
                 $order = new OrderDistribute($this, $this->orders[$i]);
                 # $order->pickup_date_index = $date_index;
-                print "<p class='$class'>";
-                $px = 30;
-                $style =
-                    "width: " . $px . "px; " .
-                    "height: " . $px . "px; " .
-                    "vertical-align: -40%; ";
-                print "<input type='checkbox' " .
-                    "name='order_ids[]' " .
-                    "value='$order->id' " .
-                    "style='$style' " .
-                    ($order->distribute &&
-                        $order->days_in_future >= 0 &&
-                        $order->days_in_future < 7 ?
-                        "checked" : "") .
-                    "> ";
-                print $order->producer . " vom " . $order->date_end; //substr($order->date_end, 0, 6) . "";
-                print "</p>";
+                print html_tag(
+                    "p",
+                    ["class" => $class],
+                    html_checkbox(
+                        "order_ids[]",
+                        $order->id,
+                        "checkbox-$order->id",
+                        "",
+                        true,
+                        $order->distribute &&
+                        $order->days_in_future >= 0 && $order->days_in_future < 7
+                    ) .
+                    $order->producer . " vom " . $order->date_end
+                );
             }
         }
         print html_button("ältere Bestellungen anzeigen", "show-more", "show_more_orders()");
@@ -158,17 +181,11 @@ class DistributeApp extends FoodsoftApiApp
                 $article = $order->create_article($article_data); //new Article($order, $article_data);
 
                 $article->html_name();
-                print "<p>"; {
+                $article->html_ordered();
+                $article->html_received();
+                $article->html_buttons();
+                $article->html_group_orders();
 
-                    $article->html_ordered();
-
-                    $ordergroups = [];
-                    foreach ($article->grouporders as $go) {
-                        $ordergroups[] = $go["name"] . ": " . $go["ordered"] . " => " . $go["received"];
-                    }
-                    print html_list($ordergroups);
-                }
-                print "</p>";
             }
         }
     }

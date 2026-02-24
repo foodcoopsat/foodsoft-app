@@ -27,6 +27,7 @@ class Order
     public $article_comments;
     public $state;
     public $is_open;
+    public $is_received;
     public $is_closed;
     public $date_end;
     public $date_pickup;
@@ -46,10 +47,12 @@ class Order
 
         $this->id = $data["id"];
         $this->producer = $data["name"];
+        $this->is_stock_order = $this->producer == "Lager";
 
         $this->state = $data["state"];
         $this->is_open = $this->state == "open"; // Bestellungen noch möglich
         $this->is_closed = $this->state == "closed"; // abgerechnet
+        $this->is_received = $this->state == "received" || $this->is_closed || $this->is_stock_order;
 
         $this->date_end = $data["ends"];
         $this->date_pickup = $data["pickup"] ?? "";
@@ -78,14 +81,13 @@ class Order
         $this->sort_index = $this->is_open ? -999 : $this->days_in_past;
 
         // parameters from producer notes
+        $this->is_stock_order = $this->producer == "Lager";
         $this->producer_notes = $data["supplier_note"] ?? "";
         $items = explode("@pickup:", $this->producer_notes);
         $this->parameters = count($items) == 2 ? json_decode($items[1], true) : [];
-        $this->has_adaptable_weights = $this->parameters["adaptable_weights"] ?? true;
-        //!producer_setting($producer, "ignore-weight");
+        $this->has_adaptable_weights = $this->parameters["adaptable_weights"] ?? !$this->is_stock_order;
         $this->info_text = $this->parameters["info_text"] ?? "";
         $this->ordered_term = $this->parameters["ordered"] ?? "bestellt";
-        $this->is_stock_order = $this->producer == "Lager";
 
         $this->articles = $this->data["articles"] ?? [];
         $this->n_articles = count($this->articles);

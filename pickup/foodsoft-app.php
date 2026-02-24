@@ -29,6 +29,7 @@ class FoodsoftApp
     public $article_state_save_method = "in-app"; // "foodsoft-db-tolerance", "foodsoft-db-article-state", "in-app"
     public $articles_pickedup = [];
     public $articles_distributed = [];
+    public $article_notes = [];
     public $base_distribution = 10000;
     public $base_pickedup = 1000;
     public $protocoll_dir = "protocolls";
@@ -72,9 +73,10 @@ class FoodsoftApp
                 $this->ordergroup = $items[2];
             } else { // from hidden input after form submission (go back)
                 $this->username = $post_get["username"];
-                $this->ordergroup_id = $post_get["ordergroup_id"];
-                $this->ordergroup = $post_get["ordergroup"];
+                $this->ordergroup_id = $post_get["ordergroup_id"] ?? null;
+                $this->ordergroup = $post_get["ordergroup"] ?? null;
             }
+            $this->was_ordergroup_selected = $this->ordergroup_id !== null;
         } else {
             $this->username = null;
         }
@@ -179,6 +181,8 @@ class FoodsoftApp
     public function html_select_user($addressee, $skip_users_without_ordergroup)
     {
         if ($this->was_ordergroup_selected || $this->has_current_user_ordergroup()) {
+            // for distribute app only: say hallo and return to continue with selecting the orders.
+            // pickup app should never reach this condition
             print "<p>Hallo $this->username!<br>";
             print "<input type='hidden' id='username' name='username' value='" .
                 implode($this->user_str_separator, [$this->username, $this->ordergroup_id, $this->ordergroup]) .
@@ -218,7 +222,7 @@ class FoodsoftApp
         return false;
     }
 
-    public function html_table($table, $headers)
+    public function html_table($table, $headers, $formats = [])
     {
         // show html table of $table for all keys of $headers
         // $headers = [key=>table_head_for_key, ...]
@@ -264,7 +268,11 @@ class FoodsoftApp
                 } elseif (is_numeric($data)) {
                     $align = "right";
                     if (str_contains($key, "weight")) {
-                        $data = sprintf("%.0f", $data);
+                        if ($data < 1000)
+                            $data = sprintf("%.0f g", $data);
+                        else
+                            //$data = sprintf("%.3f kg", $data / 1000.);
+                            $data = $this->loc_floatstr(sprintf("%g kg", $data / 1000.));
                     } elseif (str_contains($key, "price")) {
                         $data = $this->local_currency_str(
                             $data,
@@ -272,8 +280,10 @@ class FoodsoftApp
                         );
                     } elseif (is_int($data) || $key == "id") {
                         $data = sprintf("%d", $data);
+                        $align = "center";
                     } else {
-                        $data = $this->loc_floatstr(sprintf("%.2f", $data));
+                        $data = $this->loc_floatstr(sprintf($formats[$key] ?? "%.2f", $data));
+                        $align = "center";
                     }
                 }
                 $html .= "    <td align='$align'>" . $data . "</td>";
@@ -298,10 +308,16 @@ class FoodsoftApp
     {
         // $ordergroup: "current" or "all"
         foreach ($this->load_data("pickup", "states", $ordergroup) as $entry) {
-            $this->articles_pickedup[$entry["id"]] = [
-                "pickedup" => $entry["pickedup"],
-                "date" => $entry["date"]
-            ];
+            $id = $entry["id"];
+            if (isset($entry["pickup"])) {
+                $this->articles_pickedup[$id] = [
+                    "pickedup" => $entry["pickedup"],
+                    "date" => $entry["date"]
+                ];
+            }
+            if (isset($entry["note"])) {
+                $this->article_notes[$id] = $entry["note"];
+            }
         }
     }
 
