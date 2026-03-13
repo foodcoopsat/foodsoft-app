@@ -41,11 +41,11 @@ Am Ende des Notiz Feldes einer Lieferantin in der Foodsoft können Einstellungen
 `@pickup:{"setting1":value1, ...}`
 
 Eigenschaften: 
-- `"ignore_weight":true` wenn für alle Artikel der Lieferantin das Gewicht nicht anpassbar sein sollen
+- `"adaptable_weights":false` wenn für alle Artikel der Lieferantin das Gewicht nicht anpassbar sein sollen
 
 Beispiel: 
 
-`@pickup:{"ignore_weight":true}`
+`@pickup:{"adaptable_weights":false}`
 
 
 
