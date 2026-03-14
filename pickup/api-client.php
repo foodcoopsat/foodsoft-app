@@ -194,8 +194,10 @@ class ApiClient
                 print "<pre style='background-color: #EEE;'>\n";
                 print "Response: $response\n";
                 print $this->base_api_url . $api_url . " kann nicht erreicht werden.\n";
-                print "API pickup_controller.rb " .
-                    "auf $this->foodsoft_host nicht installiert?\n";
+                if (str_contains($api_url, "pickup")) {
+                    print "API pickup_controller.rb " .
+                        "auf $this->foodsoft_host nicht installiert?\n";
+                }
                 print "Abbruch!\n";
                 exit();
             }

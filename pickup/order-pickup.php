@@ -29,6 +29,10 @@ class OrderPickup extends Order
     {
         $order_class = "order-" . $this->id;
         print "<h3 class='order $order_class'>" . $this->producer . "</h3>";
+        // print "<p>Status: $this->state, " .
+        //     ($this->is_received ? "received" : "not received") . "," .
+        //     ($this->app->show_only_received_orders ? "show only received" : "show all") .
+        //     "</p>";
 
         if ($this->info_text) {
             print "<p class='info $order_class'>$this->info_text</p>";

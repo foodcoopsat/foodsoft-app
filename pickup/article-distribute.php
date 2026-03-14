@@ -5,6 +5,7 @@ class ArticleDistribute extends Article
 {
     public $grouporders = [];
     public $n_grouporders;
+    private $input_total_id;
 
     public function __construct($order, $data)
     {
@@ -27,7 +28,7 @@ class ArticleDistribute extends Article
 
             if ($this->has_weight) {
                 foreach (["ordered", "received"] as $q) {
-                    $go["weight_$q"] = $go[$q] * $this->unit_weight;
+                    $go["weight_$q"] = round($go[$q] * $this->unit_weight);
                 }
             }
 
@@ -42,8 +43,17 @@ class ArticleDistribute extends Article
 
     public function html_name()
     {
-        print "<h3>$this->name</h3>";
+        print html_tag("h3", ["id" => "article-$this->id"], $this->name);
         parent::html_name();
+    }
+
+    public static function html_href($id, $text)
+    {
+        return html_tag(
+            "a",
+            ["href" => "#article-$id"],
+            html_tag("button", [], $text)
+        );
     }
 
     public function html_ordered()
@@ -70,82 +80,80 @@ class ArticleDistribute extends Article
         $not_delivered = "nicht geliefert|doch geliefert";
         print "<p> ";
         if ($this->app->edit_received) {
+            $input = new form_input();
+            $input->add_update_function("ajaxOnChange(this);");
+            $input->add_update_function("update_received(this);");
+            // $input->set_data_attribute("n-ordergroups", $this->n_grouporders);
+            $input->set_buttons_on_both_sides();
             if ($this->has_adaptable_weight) {
                 print "Gewicht erhalten: ";
-
-                $input = new form_input();
                 $input->set_name($this->var_name("weight_received"));
                 $input->set_init_value($this->weight_received);
-                $input->set_class("weight");
-                // $input->set_update_function(sprintf(
-                //     "updateTotalReceived($id_article, %d, /*update_weight=*/ false); ",
-                //     $unit_weight
-                // ) . "ajaxOnChange(this);");
-                // if ($n_ordergroups == 1) {
-                //     $input->add_update_function("redistributeWeight($id_article);");
-                // }
+                $input->add_class("weight");
                 $input->set_clear_button();
-                $input->set_null_button($not_delivered, $this->received);
+                $input->set_null_button($not_delivered, $this->weight_received);
                 $input->set_reset_button($this->weight_received);
                 $input->set_article_name($this->name);
-                $input->set_buttons_on_both_sides();
                 $input->print();
-
                 print " Gramm";
-                // print "<input type='hidden' value='" . $total_weight_received . "'  name='formdata" . $index . "[total_weight_initial]'>";
-                // if (is_variable_weight($article)) {
-                //     print ": vom Lieferschein übernehmen!";
-                // }
-                // print "<input type='hidden' value='$unit_weight' id='input-$id_article-unit-weight'>\n";
+
             } else {
                 print "erhalten: ";
-
-                $input = new form_input();
                 $input->set_name($this->var_name("received"));
                 $input->set_init_value($this->received);
-                $input->set_class("number");
-                // $input->set_update_function(sprintf(
-                //     "updateTotalReceived($id_article, %d, /*update_weight=*/ true); ",
-                //     $unit_weight
-                // ) . "ajaxOnChange(this);");
-
+                $input->add_class("number");
                 $input->set_null_button($not_delivered, $this->received);
                 $input->set_reset_button($this->received);
-                $input->set_buttons_on_both_sides();
                 $input->set_article_name(sprintf("%d x %s", $this->received, $this->name));
                 $input->print();
             }
         } else {
 
         }
-
         print "</p>";
+        return $input->get_id();
     }
 
-    public function html_buttons()
+    public function html_buttons($input_id)
     {
-        print html_tag(
-            "p",
-            [],
-            html_button("&ddarr; Für alle 'erhalten' auf 'bestellt' setzen", "", "")
-        );
         if ($this->n_grouporders > 1) {
+            print html_tag(
+                "p",
+                [],
+                html_button(
+                    "&ddarr; alle 'erhalten' zurück setzen",
+                    "button-reset-$this->id",
+                    "update_received('$input_id', 'reset');"
+                )
+            );
             if ($this->has_adaptable_weight) {
                 print html_tag(
                     "p",
                     [],
-                    html_button("&ddarr; Gesamtgewicht auf Gruppen aufteilen", "", "")
+                    html_button(
+                        "&ddarr; Gesamtgewicht auf Gruppen aufteilen",
+                        "button-distribute-$this->id",
+                        "update_received('$input_id', 'distribute-total');"
+                    )
                 );
                 print html_tag(
                     "p",
                     [],
-                    html_button("&uuarr; Gesamtgewicht von Gruppen übernehmen", "", "")
+                    html_button(
+                        "&uuarr; Gesamtgewicht von Gruppen übernehmen",
+                        "button-sum-$this->id",
+                        "update_received('$input_id', 'update-sum');"
+                    )
                 );
             } else {
                 print html_tag(
                     "p",
                     [],
-                    html_button("&uuarr; Gesamtanzahl von $this->n_grouporders Gruppen übernehmen", "", "")
+                    html_button(
+                        "&uuarr; Gesamtanzahl von $this->n_grouporders Gruppen übernehmen",
+                        "button-sum-$this->id",
+                        "update_received('$input_id', 'update-sum');"
+                    )
                 );
             }
         }
@@ -158,33 +166,28 @@ class ArticleDistribute extends Article
             $received = $grouporder["received"];
             $weight_received = $grouporder["weight_received"] ?? 0;
             if ($this->app->edit_received) {
+                $input = new form_input();
+                $input->add_class("article-$this->id");
+                $input->set_data_attribute("article-id", $this->id);
+                $input->add_update_function("ajaxOnChange(this);");
+                $input->add_update_function("update_received(this);");
+                $input->set_buttons_on_both_sides();
                 if ($this->has_adaptable_weight) {
-                    $input = new form_input();
                     $input->set_name("weight_received_grouporder[$id]");
                     $input->set_init_value($weight_received);
-                    //$input->set_id("received-$this->id");
-                    $input->set_class("weight");
-                    // $input->set_update_function(
-                    //     "updateReceived($id_article, update_weight=true, $id_ordergroup); " .
-                    //     "ajaxOnChange(this);"
-                    // );
-                    $input->set_buttons_on_both_sides();
+                    $input->set_data_attribute("received", $weight_received);
+                    $input->add_class("weight");
                     $weight_received = $input->html();
                 } else {
-                    $input = new form_input();
                     $input->set_name("received_grouporder[$id]");
                     $input->set_init_value($received);
-                    //$input->set_id("received-$this->id");
-                    $input->set_class("number");
-                    // $input->set_update_function(
-                    //     "updateReceived($id_article, update_weight=true, $id_ordergroup); " .
-                    //     "ajaxOnChange(this);"
-                    // );
-                    $input->set_buttons_on_both_sides();
+                    $input->set_data_attribute("received", $received);
+                    $input->add_class("number");
                     $received = $input->html();
                 }
             }
             $table[] = [
+                "tr_id" => "tr-$id",
                 "checkbox" => html_checkbox(
                     "distributed[]",
                     $id,
@@ -198,6 +201,7 @@ class ArticleDistribute extends Article
                 "weight_ordered" => $grouporder["weight_ordered"] ?? "",
                 "weight_received" => $weight_received,
                 "group_name" => $grouporder["name"],
+                "note" => $this->html_grouporder_note($id)
             ];
 
         }
@@ -208,7 +212,61 @@ class ArticleDistribute extends Article
             "received" => $this->has_adaptable_weight ? "" : "erhalten",
             "weight_received" => $this->has_adaptable_weight ? "Gramm erhalten" : "",
             "group_name" => "Bestellgruppe",
+            "note" => "Notiz",
         ]), ["received" => $this->has_adaptable_weight ? "%.2f" : "%.0f"]);
+    }
+
+
+    private function html_grouporder_note($id)
+    {
+        $grouporder_id = "grouporder-$id";
+        return html_button(
+            html_tag("img", ["src" => "../icons/notiz.png"]), //"Notiz", // "Notiz eingeben"
+            "note-button-show-$grouporder_id",
+            "show_note('$grouporder_id', true)"
+        ) .
+            html_tag(
+                "span",
+                ["id" => "note-$grouporder_id", "style" => "display:none"],
+                html_tag("span", ["class" => "info"], "Hinweis für Bestellgruppe:") .
+                "<br>" .
+                html_tag("textarea", [
+                    "type" => "text",
+                    "id" => "note-textarea-$grouporder_id",
+                    "name" => "note_grouporder[$id]",
+                    "rows" => 3,
+                    "cols" => 28,
+                ], "") .
+                "<br>" .
+                html_button(
+                    'Notiz verbergen',
+                    "note-button-hide-$grouporder_id",
+                    "show_note('$grouporder_id', false)"
+                )
+            );
+
+        // $this->html_hidden_input("note_initial", $this->note);
+    }
+
+    public function html_difference()
+    {
+        if ($this->n_grouporders > 1) {
+            print html_tag("p", [], "Differenz gesamt &minus; Summe einzeln: " .
+                html_tag("input", [
+                    "class" => 'weight',
+                    "type" => 'number',
+                    "value" => '0',
+                    "disabled" => 'disabled',
+                    "id" => "input-diff-$this->id",
+                ]));
+        }
+    }
+
+    public function html_update_received($input_id)
+    {
+        if ($this->n_grouporders > 1) {
+            print html_tag("script", [], "update_received('$input_id');");
+        }
     }
 }
 ?>

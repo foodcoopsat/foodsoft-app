@@ -9,6 +9,7 @@ class DistributeApp extends FoodsoftApiApp
     public $order_ids;
     public $edit_received;
     public $ajax_timeout = 100;
+    public $index;
 
     public function needs_api()
     {
@@ -42,22 +43,8 @@ class DistributeApp extends FoodsoftApiApp
             $this->html_title();
             $this->load_protocolls();
             $this->html_distribute_form();
-
-            print '    <div class="searchbar"
-                            style="position: fixed; bottom: 0; width: 100%; padding: 16px 8px; background-color: #EEE; z-index: 999;">
-                            <div style="float:left">
-                                <input type="text" id="searchtext" placeholder="Suchtext..." name="search" style=""
-                                    onChange="window.find(this.value, false, false, true);">
-                                <button type="button"
-                                    onClick="window.find(document.getElementById(\"searchtext\").value, false, false, true);">&#128269;</button>
-                                <!-- button type="button" onClick="window.ajax_idle_time=0;">sync</button -->
-                            </div>
-                            <div style="float:right">
-                                <span id="seconds"></span>
-                                <span id="sync-status"></span> &nbsp;&nbsp;&nbsp;
-                            </div>
-                        </div>
-                        <div style="padding-bottom: 100px;"> <!-- margin-bottom -->';
+            $this->set_index();
+            $this->html_bottom_bar();
         }
         $this->html_footer();
     }
@@ -69,12 +56,20 @@ class DistributeApp extends FoodsoftApiApp
             $this->save_protocoll($ajax_data);
         } elseif ($action == "ajax-read") {
             $from_event = $this->get['from_event'] ?? 0;
-            $n_tries = 0;
-            do {
-                $new_events = $this->load_protocoll_json(0, $from_event);
-                sleep(1);
-            } while (count($new_events) == 0 && $n_tries++ < $this->ajax_timeout);
-            print implode("\n", $new_events);
+            if ($from_event == -2) { // load all weeks, including current week
+                print implode("\n", $this->load_protocolls(true, true));
+            } elseif ($from_event == -1) { // load all weeks, excluding current week
+                print implode("\n", $this->load_protocolls(true, false));
+            } else {
+                $n_tries = 0;
+                do {
+                    $new_events = ($from_event == -1) ?
+                        $this->load_protocolls(true) :
+                        $this->load_protocoll_json(0, $from_event);
+                    sleep(1);
+                } while (count($new_events) == 0 && $n_tries++ < $this->ajax_timeout);
+                print implode("\n", $new_events);
+            }
         }
     }
 
@@ -165,6 +160,21 @@ class DistributeApp extends FoodsoftApiApp
         $this->html_form_end("Einkistln starten");
     }
 
+
+    public function set_index()
+    {
+        $this->index = [];
+        foreach ($this->orders as $order_data) {
+            $order = $this->create_order($order_data);
+            $this->index["_order-" . $order->id] = " "; // spacer
+            $this->index["order-" . $order->id] = "=== $order->producer =====";
+            $order->sort_articles();
+            foreach ($order->articles as $article_data) {
+                $this->index["article-" . $article_data["id"]] = str_repeat("&nbsp;", 2) . $article_data["name"];
+            }
+        }
+    }
+
     public function html_distribute_form()
     {
         $this->get_foodsoft_orders($this->order_ids);
@@ -178,16 +188,48 @@ class DistributeApp extends FoodsoftApiApp
             $order->html_heading();
 
             foreach ($order->articles as $article_data) {
-                $article = $order->create_article($article_data); //new Article($order, $article_data);
-
+                $article = $order->create_article($article_data);
                 $article->html_name();
                 $article->html_ordered();
-                $article->html_received();
-                $article->html_buttons();
+                $input_id = $article->html_received();
+                $article->html_note("Notiz für alle eingeben", "Hinweis an alle, die diesen Artikel bestellt haben:");
+                $article->html_buttons($input_id);
                 $article->html_group_orders();
-
+                $article->html_difference();
+                $article->html_update_received($input_id);
+                $order->html_article_index(5);
             }
         }
+    }
+    public function html_bottom_bar()
+    {
+        print html_tag(
+            "div",
+            [
+                "class" => "searchbar",
+                "style" => [
+                    "position: fixed;",
+                    "bottom: 0;",
+                    "width: 100%;",
+                    "padding: 16px 8px;",
+                    "background-color: #EEE;",
+                    "z-index: 999;"
+                ]
+            ],
+            html_tag(
+                "div",
+                ["style" => "float:left"],
+                html_select("index", ["0" => "-- Artikel/Bestellung auswählen --"] + $this->index)
+            ) .
+            html_tag(
+                "div",
+                ["style" => "float:right"],
+                '<span id="seconds"></span>' .
+                '<span id="sync-status"></span>' .
+                str_repeat("&nbsp;", 5)
+            )
+        );
+        print html_tag("div", ["style" => "padding-bottom: 100px;"], "<!--  margin-bottom -->");
     }
 
 }

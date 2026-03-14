@@ -47,13 +47,10 @@ class Article
 
         $this->set_unit_weight($data["unit"]);
         $this->has_variable_weight = str_contains(
-            $this->name,
-            $this->app->config["variable_weight"] ?? "*"
+            $this->name . $this->unit,
+            $this->app->variable_weight_tag
         );
-        $this->set_locked_weight(
-            $this->app->config["locked_weight"] ??
-            ["#", "Glas"]
-        );
+        $this->set_locked_weight($this->app->locked_weight_tags);
         $this->has_adaptable_weight =
             $this->has_weight &&
             $this->order->has_adaptable_weights &&
@@ -97,11 +94,11 @@ class Article
         $this->reset_weight = round($this->unit_weight * $this->reset_received);
     }
 
-    private function set_locked_weight($items)
+    private function set_locked_weight($tags)
     {
         $this->has_locked_weight = FALSE;
-        foreach ($items as $item) {
-            if (str_contains($this->unit, $item)) {
+        foreach ($tags as $tag) {
+            if (str_contains($this->unit, $tag)) {
                 $this->has_locked_weight = TRUE;
                 return;
             }
@@ -147,5 +144,58 @@ class Article
         $this->html_hidden_input("article_name", $this->name);
     }
 
+    public function html_note($button, $text)
+    {
+        // $text = "Hinweis zur Abrechnung:";
+        if ($this->order->state == "closed")
+            $text .= " (Änderungen in erhaltener Menge können nicht mehr " .
+                "berücksichtigt werden, weil die Bestellung bereits abgerechnet ist!)";
+        print html_button(
+            $button, // "Notiz eingeben"
+            "note-button-show-$this->id",
+            "show_note($this->id, true)"
+        );
+        print html_tag(
+            "span",
+            ["id" => "note-$this->id", "style" => "display:none"],
+            html_tag("span", ["class" => "info"], $text) .
+            "<br>" .
+            html_tag("textarea", [
+                "type" => "text",
+                "id" => "note-textarea-$this->id",
+                "name" => $this->var_name("note"),
+                "rows" => 3,
+                "cols" => 28,
+            ], $this->note) .
+            "<br>" .
+            html_button(
+                'Notiz verbergen',
+                "note-button-hide-$this->id",
+                "show_note($this->id, false)"
+            )
+        );
+        $this->html_hidden_input("note_initial", $this->note);
+
+
+        // print '<button type="button" ' .
+        //     ' onclick="show_note(' . $this->id . ',true)" ' .
+        //     ' id="note-button-show-' . $this->id . '">' .
+        //     'Notiz eingeben' .
+        //     '</button>';
+        // print '<span id="note-' . $this->id . '" style="display:none">';
+        // print '<span class="info">' . $text . '</span><br>';
+        // print '<textarea type="text" ' .
+        //     ' id="note-textarea-' . $this->id . '" ' .
+        //     ' name="' . $this->var_name(" note") . '" ' . 'rows=3 cols=28>' . $this->note .
+        //     '</textarea><br>';
+        // print '<button type="button" ' .
+        //     ' onclick="show_note(' . $this->id . ', false)" ' .
+        //     ' id="note-button-hide-' .
+        //     $this->id .
+        //     '">' .
+        //     'Notiz verbergen' .
+        //     '</button>';
+        // print '</span>';
+    }
 }
 ?>

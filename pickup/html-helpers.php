@@ -12,7 +12,7 @@ function html_hidden_input($name, $value)
     );
 }
 
-function html_button($text, $id, $on_click, $visible = true)
+function html_button($text, $id, $on_click, $visible = true, $attributes = [])
 {
     return html_tag(
         "button",
@@ -21,7 +21,7 @@ function html_button($text, $id, $on_click, $visible = true)
             "id" => $id,
             "onclick" => $on_click,
             "style" => ($visible ? "" : "display:none"),
-        ],
+        ] + $attributes,
         $text
     );
 }
@@ -58,6 +58,23 @@ function html_list($items, $ordered = false)
         "</li></$list_type>";
 }
 
+function html_select($var_name, $options)
+{
+    $html_options = [];
+    // ... '<option value="none">-- bitte ... auswählen --</option>';
+    foreach ($options as $value => $text) {
+        $html_options[] = "<option value='$value'>$text</option>";
+    }
+    return html_tag(
+        "select",
+        [
+            "name" => $var_name,
+            "id" => $var_name,
+            "onChange" => "window.location.href='#'+this.value;",
+        ],
+        implode("\n", $html_options)
+    );
+}
 
 
 function html_attribute($name, $value = "")
@@ -89,7 +106,7 @@ function html_attributes($attributes)
     return $html;
 }
 
-function html_tag($tag_name, $attributes = [], $content = "")
+function html_tag($tag_name, $attributes = [], $content = null)
 {
     if ($attributes == "close") {
         return "</$tag_name>";
@@ -97,7 +114,7 @@ function html_tag($tag_name, $attributes = [], $content = "")
     $html = "<$tag_name";
     $html .= html_attributes($attributes);
     $html .= ">";
-    if ($content)
+    if ($content !== null)
         $html .= "$content</$tag_name>";
     return $html;
 }
@@ -114,15 +131,19 @@ function html_tags($tag_name, $attribute_name, $values, $attributes, $content = 
 class form_input
 {
 
-    private $name, $class, $id;
+    private $name;
+    private $classes = [];
+    private $id;
     private $value_max;
-    private $value_init, $value_reset;
+    private $value_init;
+    private $value_reset;
     private $update_function = "";
-    private $null_button = "", $reset_button = "", $clear_button = "";
+    private $null_button = "";
+    private $reset_button = "";
+    private $clear_button = "";
     private $buttons_on_both_sides = FALSE;
-    private $data_attributes = array();
-
-    //public function __construct() {}
+    public $submit_initial_value = TRUE;
+    private $data_attributes = [];
 
 
     public function set_name($name)
@@ -132,19 +153,26 @@ class form_input
             $this->id = strtr($name, array("[" => "-", "]" => ""));
     }
 
-    public function set_class($class)
+    public function add_class($class)
     {
-        $this->class = $class;
+        $this->classes[] = $class;
     }
 
     private function show_weight_unit()
     {
-        return strpos($this->class, "weight") !== FALSE && strpos($this->class, "unit") !== FALSE;
+        return
+            in_array("weight", $this->classes) &&
+            in_array("unit", $this->classes);
     }
 
     public function set_id($id)
     {
         $this->id = $id;
+    }
+
+    public function get_id()
+    {
+        return "input-$this->id";
     }
 
     public function set_init_value($value_init)
@@ -153,7 +181,7 @@ class form_input
             $value_init = 0;
         $this->value_init = $value_init;
         $this->value_reset = $value_init;
-        if ($this->class == "number") {
+        if (in_array("number", $this->classes)) {
             $this->value_max = $value_init + 50;
         } else {
             $this->value_max = $value_init * 3; // weight
@@ -209,16 +237,7 @@ class form_input
 
     public function set_data_attribute($name, $value)
     {
-        $this->data_attributes[$name] = $value;
-    }
-
-    private function data_attributes()
-    {
-        $s = "";
-        foreach ($this->data_attributes as $name => $value) {
-            $s .= sprintf('data-%s="%s" ', $name, $value); // https://www.w3schools.com/TAGS/att_data-.asp  
-        }
-        return $s;
+        $this->data_attributes["data-$name"] = $value;
     }
 
     public function set_article_name($article_name)
@@ -238,18 +257,20 @@ class form_input
         $id = $this->id;
         $html_left = "";
         $html_right = "";
-        $html_center = sprintf(
-            '<input class="%s" name="%s" id="input-%s" type="number" value="%.0f" ' .
-            '%s min="0" max="%.0f" %s>',
-            $this->class,
-            $this->name,
-            $this->id,
-            $this->value_init,
-            $this->data_attributes(),
-            $this->value_max,
-            strlen($this->update_function) > 0 ? "onChange='" . $this->update_function . "'" : ""
+        $html_center = html_tag(
+            "input",
+            [
+                "class" => $this->classes,
+                "name" => $this->name,
+                "id" => $this->get_id(),
+                "type" => "number",
+                "value" => $this->value_init,
+                "min" => "0",
+                "max" => $this->value_max,
+                "onChange" => $this->update_function,
+            ] +
+            $this->data_attributes
         );
-
         if ($this->show_weight_unit())
             $html_center .= " Gramm ";
 
@@ -277,6 +298,16 @@ class form_input
         }
         if ($this->clear_button) {
             $html_right .= "\n" . '<button type="button" onclick="my_clear(' . "'input-$id'" . ')">' . $this->clear_button . '</button>';
+        }
+        if ($this->submit_initial_value) {
+            $html_right .= html_tag(
+                "input",
+                [
+                    "type" => "hidden",
+                    "name" => str_replace("[", "_initial[", $this->name),
+                    "value" => $this->value_init
+                ]
+            );
         }
         if ($this->buttons_on_both_sides) {
             return $html_left . "\n" . $html_center . "\n" . $html_right . "\n";

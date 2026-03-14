@@ -124,6 +124,12 @@ button {
   margin-bottom: 2px;
 }
 
+button:disabled {
+  color: #aaa;
+  border: 1px solid #aaa;
+  /* text color */
+}
+
 input.weight {
   width: 5em;
 }

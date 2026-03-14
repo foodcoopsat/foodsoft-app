@@ -116,6 +116,9 @@ class Order
                 }
             }
         }
+        // print "<pre>article_comments: ";
+        // print_r($this->article_comments);
+        // print "</pre>";
     }
 
     public function var_name($var)

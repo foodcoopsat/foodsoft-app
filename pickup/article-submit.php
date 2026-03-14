@@ -168,9 +168,12 @@ class ArticleSubmitted extends Article
             // neu: ... @123456 Kommentar zum Artikel
 
 
-            if ($this->app->comment_level >= 1) {
+            if ($this->app->comment_level == 2) {
                 $this->changelog_items[] = "@" . $this->id . " " . $this->note;
             } else {
+                if ($this->app->comment_level == 1) {
+                    $this->changelog_items[] = $this->note;
+                }
                 $this->app->articles_pickedup[] = [
                     "id" => $this->id,
                     "note" => $this->note,

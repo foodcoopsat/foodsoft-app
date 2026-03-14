@@ -45,6 +45,7 @@ class FoodsoftApp
     {
         global $_POST;
         global $_GET;
+        umask(0);
 
         $this->get = $_GET;
         $this->post = $_POST;
@@ -59,7 +60,7 @@ class FoodsoftApp
         $this->config = $config;
         $this->decimal_separator = $config["decimal_separator"] ?? ",";
         $this->user_str_separator = $config["user_str_separator"] ?? "|";
-        $this->time_now = $config["time_now"] ?? "now"; // "today"
+        $this->time_now = $config["time_now"] ?? "today"; // today: time = 00:00:00, needed for days_ago() to give correct result (wrong: "now")
         $this->n_weeks = $this->config["n_weeks"] ?? 5;
         $this->debug = $config["debug"] ?? false;
 
@@ -194,7 +195,7 @@ class FoodsoftApp
 
         $this->get_foodsoft_users($skip_users_without_ordergroup);
         // print "<pre>";
-        // print_r($pickup->users);
+        // print_r($this->users);
         // exit;
 
         print "<h2>Deinen Namen auswählen: Wer bist du?</h2>";
@@ -206,9 +207,9 @@ class FoodsoftApp
         foreach ($this->users as $user) {
             $uid = $user["id"];
             $name = trim($user["name"]);
-            // print "user: '$name' ";
-            // print_r($this->config["exclude_usernames"] ?? []);
-            // print "<br>";
+            print "user: '$name' ";
+            print_r($this->config["exclude_usernames"] ?? []);
+            print "<br>";
             if (in_array($name, $this->config["exclude_usernames"] ?? [])) {
                 continue;
             }
@@ -259,7 +260,7 @@ class FoodsoftApp
                 $is_table_started = true;
             }
 
-            $html .= html_tag("tr", ["class" => $row["class"] ?? ""]);
+            $html .= html_tag("tr", ["class" => $row["class"] ?? "", "id" => $row["tr_id"] ?? ""]);
             foreach (array_keys($headers) as $key) {
                 $data = $row[$key] ?? "";
                 $align = "left";
@@ -309,10 +310,10 @@ class FoodsoftApp
         // $ordergroup: "current" or "all"
         foreach ($this->load_data("pickup", "states", $ordergroup) as $entry) {
             $id = $entry["id"];
-            if (isset($entry["pickup"])) {
+            if (isset($entry["pickedup"])) {
                 $this->articles_pickedup[$id] = [
                     "pickedup" => $entry["pickedup"],
-                    "date" => $entry["date"]
+                    "date" => $entry["date"] ?? null,
                 ];
             }
             if (isset($entry["note"])) {
@@ -323,7 +324,7 @@ class FoodsoftApp
 
     public function has_current_user_ordergroup()
     {
-        return $this->ordergroup_id != -1;
+        return $this->ordergroup_id != -1 && $this->ordergroup_id !== null;
     }
 
     // --- submit helpers --------------------------------
@@ -447,13 +448,16 @@ class FoodsoftApp
         return $data;
     }
 
-    public function load_protocolls()
+    public function load_protocolls($json = false, $include_current_week = true)
     {
         $this->html_debug_begin();
         $this->protocoll = [];
-        for ($week = $this->n_weeks - 1; $week >= 0; $week--) {
+        for ($week = $this->n_weeks - 1; $week >= ($include_current_week ? 0 : 1); $week--) {
             $this->protocoll_last_modified = null;
-            $this->protocoll = array_merge($this->protocoll, $this->load_protocoll($week));
+            $this->protocoll = array_merge(
+                $this->protocoll,
+                $json ? $this->load_protocoll_json($week) : $this->load_protocoll($week)
+            );
         }
         // print_r($this->protocoll);
         $this->html_debug_end();

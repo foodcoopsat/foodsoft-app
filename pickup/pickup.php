@@ -13,6 +13,8 @@ class PickupApp extends FoodsoftApiApp
     public $login_user;
     public $credit;
     public $show_only_received_orders;
+    public $variable_weight_tag;
+    public $locked_weight_tags;
     public $n_pickedup_initially = 0;
     public $articles_not_pickedup = [];
     public $comment_level;
@@ -49,6 +51,12 @@ class PickupApp extends FoodsoftApiApp
     {
         parent::__construct($config);
         $this->show_only_received_orders = $config["show_only_received_orders"] ?? false;
+        // print "<pre>pickup::construct config:";
+        // print_r($config);
+        // print "</pre>";
+
+        $this->variable_weight_tag = $this->config["variable_weight"] ?? "*";
+        $this->locked_weight_tags = $this->config["locked_weight"] ?? ["#", "Glas"];
 
         if ($this->action == "protocoll") {
             $this->title = "Protokoll Abholen";
@@ -74,6 +82,7 @@ class PickupApp extends FoodsoftApiApp
                     "onbeforeunload" => "return before_unload()",
                 ]);
                 $this->html_title();
+                $this->debug = TRUE;
                 $this->load_article_pickup_states("current");
                 $this->html_pickup_form();
             } else {
@@ -234,6 +243,11 @@ class PickupApp extends FoodsoftApiApp
         $this->username = $this->post["username"];
         $this->realname = $this->post["realname"];
         $this->ordergroup = $this->post["ordergroup"];
+
+        //$this->debug = TRUE;
+        $this->html_debug_begin();
+        $this->debug_var("post", $this->post);
+        $this->html_debug_end();
 
         $html = [];
         $html_unchecked = [];

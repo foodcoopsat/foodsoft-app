@@ -9,13 +9,13 @@
 
 
 function updateInput(inputElement, xmin, xmax) {
-    x = parseInt(inputElement.value);
+    const x = parseInt(inputElement.value);
     if (isNaN(x)) {
         alert("Keine gültige Zahl: '" + inputElement.value + "'");
         inputElement.value = inputElement.getAttribute("data-reset-value");
         return;
     }
-    xf = parseFloat(inputElement.value);
+    const xf = parseFloat(inputElement.value);
     if (x - xf != 0) {
         alert(`Die Eingabe von Zahlen mit Komma (${inputElement.value}) ist nicht möglich - bitte nur ganze Zahlen (ohne Komma) eingeben.`)
         inputElement.value = Math.round(xf); // + round(parseFloat(inputElement.value));
@@ -50,22 +50,18 @@ function stepsize(x) {
 
 
 function increment(id, xmax = 9999) {
-    let e = document.getElementById(id);
+    const e = document.getElementById(id);
     e.setAttribute('data-action', 'increment');
     let x = parseInt(e.value);
-    let x0 = x;
     x += stepsize(x);
     if (x > xmax) x = xmax;
     e.value = x;
-    //console.log("increment " + id + " " + e.value);
-    //return;
-
     if (e.onchange instanceof Function)
         e.onchange();
 }
 
 function decrement(id, xmin = 0) {
-    let e = document.getElementById(id);
+    const e = document.getElementById(id);
     e.setAttribute('data-action', 'decrement');
     let x = parseInt(e.value);
     x -= stepsize(x - 1);
@@ -77,8 +73,8 @@ function decrement(id, xmin = 0) {
 }
 
 function zero(id, button) {
-    let e = document.getElementById(id); // input element
-    let a = e.getAttribute("data-article");
+    const e = document.getElementById(id); // input element
+    const a = e.getAttribute("data-article");
     if (e.value > 0) {
         e.setAttribute('data-action', 'zero');
         if (button) {
@@ -95,7 +91,7 @@ function zero(id, button) {
         }
         //console.log("disable " + id + " => " + id.replace("null","reset"));
         document.getElementById(id + "-reset").disabled = true;
-    } else if (button) {
+    } else if (button) { // e.value==0
         e.setAttribute('data-action', 'reset');
         e.value = e.getAttribute("data-reset-value");
         button.innerHTML = button.getAttribute("data-text-0");
@@ -110,8 +106,22 @@ function zero(id, button) {
     }
 }
 
+function update_zero_button(id) {
+    // if the input value is changed externally e.g. by ajax synchronisation, 
+    // this function has to be called to obtain the correct button text
+    const input = document.getElementById(id);
+    const button = document.getElementById(id + "-null");
+    if (button) {
+        button.innerHTML = button.getAttribute("data-text-" + (input.value > 0 ? 0 : 1));
+        // console.log("  button innerHtml: " + "data-text-" + (input.value > 0 ? 0 : 1) + " " + button.getAttribute("data-text-" + (input.value > 0 ? 1 : 0)))
+    }
+    else {
+        console.log("  button not found: " + id + "-null");
+    }
+}
+
 function my_clear(id) {
-    let e = document.getElementById(id);
+    const e = document.getElementById(id);
     e.setAttribute('data-action', 'clear');
     //console.log("clear: " + id + " " + e.value);
     e.value = null;
@@ -120,7 +130,7 @@ function my_clear(id) {
 
 function my_reset(id, value) {
     console.log("reset");
-    let e = document.getElementById(id);
+    const e = document.getElementById(id);
     e.setAttribute('data-action', 'reset');
     e.value = value;
     if (e.onchange instanceof Function) {

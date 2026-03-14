@@ -9,9 +9,162 @@ function show_more_orders() {
     }
 }
 
+function id_article(element) {
+    if (element.id.includes("grouporder"))
+        return element.getAttribute('data-article-id');
+    else // input-weight_received-218962
+        return element.id.split("-")[2];
+}
+
+function is_grouporder(element) {
+    return element.id.includes("grouporder");
+}
+
+function is_total(element) {
+    return !is_grouporder(element);
+}
+
+function id_grouporder_article(element) {
+    return element.id.split("-")[2];
+}
 
 
-// ==== ajax for checkbox sync ==========================================
+function set_value(id, value) {
+    const e = document.getElementById(id);
+    if (e != undefined) {
+        e.value = value;
+        return true;
+    } else {
+        return false;
+    }
+}
+
+function get_int_value(id, default_value) {
+    const e = document.getElementById(id);
+    if (e != undefined) {
+        return parseInt(e.value);
+    } else {
+        return default_value;
+    }
+}
+
+function disable(id, disable) {
+    const e = document.getElementById(id);
+    if (e) e.disabled = disable;
+}
+
+function get_data(element, name) {
+    return element.getAttribute("data-" + name)
+}
+
+function set_class(id, classname, activate) {
+    const element = document.getElementById(id);
+    if (element == undefined) return;
+    if (activate) {
+        element.classList.add(classname);
+    } else {
+        element.classList.remove(classname);
+    }
+}
+
+function update_received(element, action = "none") {
+    if (typeof element === "string") {
+        element = document.getElementById(element);
+    }
+    const article_id = id_article(element);
+    const is_weight = element.id.includes("weight");
+    const total_id = "input-" + (is_weight ? "weight_" : "") + "received-" + article_id;
+    let total = get_int_value(total_id, 0);
+    //console.log("update_received(" + element.id + ", " + action + "): article_id=" + article_id + ", total_id=" + total_id + ", total= " + total);
+    const grouporders = document.getElementsByClassName("article-" + article_id);
+    const n_grouporders = grouporders.length;
+
+    let grouporder_sum = 0;
+    if (action == "distribute-total") {
+        for (const e of grouporders) {
+            grouporder_sum += parseFloat(get_data(e, "received"));
+        }
+        const entity = total / grouporder_sum;
+        console.log("  entity=" + entity);
+        for (const e of grouporders) {
+            e.value = Math.round(parseFloat(get_data(e, "received") * entity));
+            ajaxOnChange(e);
+        }
+        grouporder_sum = total;
+    } else {
+        for (const e of grouporders) {
+            if (action == "reset") {
+                e.value = get_data(e, "received");
+                ajaxOnChange(e);
+            }
+            grouporder_sum += Number(e.value);
+        }
+        if (action == "update-sum") {
+            set_value(total_id, grouporder_sum);
+            ajaxOnChange(document.getElementById(total_id));
+            total = grouporder_sum;
+        }
+        if (is_total(element)) {
+            if (action == "ajax") {
+                update_zero_button(element.id);
+            } else {
+                if (element.value == 0 && grouporder_sum > 0) {
+                    // nicht erhalten
+                    for (const e of grouporders) {
+                        e.value = 0;
+                        ajaxOnChange(e);
+                    }
+                    grouporder_sum = 0;
+                } else if (element.value > 0 && grouporder_sum == 0) {
+                    // doch erhalten
+                    for (const e of grouporders) {
+                        e.value = get_data(e, "received");
+                        ajaxOnChange(e);
+                        grouporder_sum += Number(e.value);
+                    }
+                }
+            }
+            for (const e of grouporders) {
+                set_class("tr-" + id_grouporder_article(e), 'notreceived', e.value == 0);
+                // console.log("tr-" + id_grouporder_article(e) + ' notreceived: ' + (e.value == 0) + " " + e.value);
+            }
+        } else {
+            set_class("tr-" + id_grouporder_article(element), 'notreceived', element.value == 0);
+        }
+    }
+    // console.log("   grouporder_sum=" + grouporder_sum);
+
+
+
+    if (n_grouporders > 1) {
+        const input_diff_id = "input-diff-" + article_id;
+        const difference = total - grouporder_sum;
+        set_value(input_diff_id, difference);
+        document.getElementById(input_diff_id).style.backgroundColor =
+            Math.abs(difference) > (is_weight ? 10 : 0) ? "yellow" : "white";
+        for (const button of ["distribute", "sum"]) { // "reset",
+            disable("button-" + button + "-" + article_id, difference == 0);
+            // console.log("button-" + button + "-" + article_id + ": " + (difference == 0));
+        }
+    } else if (n_grouporders == 1) {
+        if (is_grouporder(element)) {
+            set_value(total_id, element.value);
+            ajaxOnChange(document.getElementById(total_id));
+        } else {
+            grouporders[0].value = element.value;
+            ajaxOnChange(grouporders[0]);
+        }
+    }
+
+}
+
+
+
+
+
+
+
+// ==== ajax for checkbox and received input sync ==========================================
 
 function page_log(text) {
     // document.getElementById("log").innerHTML += text;
@@ -19,45 +172,46 @@ function page_log(text) {
 
 
 function ajaxOnChange(element) {
-    let xmlhttp = new XMLHttpRequest();
+    const xmlhttp = new XMLHttpRequest();
     let value = "";
-    let sub_ids = [];
+    const grouporder_ids = [];
     if (element.type == "checkbox") {
-        value = (element.checked ? true : false);
+        value = element.checked; // ? true : false);
     } else { // element.type == "input"
-        value = element.value;
+        value = Number(element.value);
         // console.log("   element type: " + element.type + ", value: " + value);
-        if (element.id.search("total") != -1) { // input-131484-total_received, input-132089-total_weight_received
-            // determine sub_ids of input elements for individual ordergroups
-            // this is used in read_distributions() in common.php to set the amount of all ordergoups to 0 if the total amount is 0
-            let id_article = element.id.split("-")[1];
-            let classname = input_id2("received", id_article);
-            for (let e of document.getElementsByClassName(classname)) {
-                sub_ids.push(e.id.split("-")[1]);
+        if (!element.id.includes("grouporder")) { // input-weight_received-218962, input-received-218962
+            // determine grouporder_ids of input elements for individual ordergroups
+            const article_id = id_article(element);
+            for (const e of document.getElementsByClassName("article-" + article_id)) {
+                // id: input-weight_received_grouporder-2619460
+                grouporder_ids.push(Number(id_grouporder_article(e)));
             }
-            console.log("  sub ids with " + classname + ": " + sub_ids);
+            console.log("  grouporder_ids with article-" + article_id + ": " + grouporder_ids);
         }
     }
+    const data = {
+        date: currentDateAndTimeString(),
+        session_id: window.my_session_id,
+        username: window.username,
+        element_id: element.id,
+        value: value,
+    };
+    if (grouporder_ids.length)
+        data.grouporder_ids = grouporder_ids;
+
     let url = "?" +
         [
             "app=distribute",
             "action=ajax-write",
-            "ajax-data=" + JSON.stringify({
-                date: currentDateAndTimeString(),
-                session_id: window.my_session_id,
-                username: window.username,
-                element_id: element.id,
-                value: value,
-                sub_ids: sub_ids,
-                // request: window.n_ajax_requests++
-            })
+            "ajax-data=" + JSON.stringify(data)
         ].join("&");
-    console.log("get url with join: " + url);
+    // console.log("get url with join: " + url);
     page_log(currentDateAndTimeString() + " " + url + "\n");
     xmlhttp.open("GET", url, true);
     xmlhttp.onreadystatechange = function () {
         page_log(xmlhttp.readyState + "w ");
-        // Check if the request is complete
+        // check if the request is complete
         if (xmlhttp.readyState === 4) {
             if (xmlhttp.status === 200) {
                 // Request was successful
@@ -89,9 +243,8 @@ async function update(xmlhttp) {
         sleeptime += 1;
         // console.log(`update ${i}: ${window.n_ajax_events} events, sleeptime ${sleeptime}, ${window.ajax_idle_time} s idle`);
         if (window.unprocessed_response || sleeptime > window.ajax_timeout + 10) { // sleeptime >= seconds
-            //console.log(`update ${i} ${seconds} s: ${window.n_ajax_events} events, ${t} s idle`);
+            // console.log(`update ${i} ${seconds} s: ${window.n_ajax_events} events, ${t} s idle`);
             if (window.n_ajax_empy_responses * window.ajax_timeout >= 600) {
-                //alert("Es ist seit 10 Minuten keine Aktivität mehr erfolgt. Möchtest du weitermachen?");
                 if (!window.confirm(currentDateAndTimeString() + ": es ist seit mehr als 10 Minuten keine Aktivität mehr erfolgt. Ok um weiterzumachen, Abbrechen/Cancel um neu anzufangen.")) {
                     window.onbeforeunload = null;
                     window.location = document.referrer;
@@ -134,12 +287,19 @@ function start_update(username, ajax_timeout) {
             }
         }
     };
-    update(xmlhttp);
+
+    load_events(xmlhttp, -1); // events from previous weeks, excluding current
+    window.n_ajax_events = 0;
+    load_events(xmlhttp, 0); // events from current week, sets window.n_ajax_events to number of events from current week
+
+    update(xmlhttp); // start automatic updates
 }
 
-function load_events(xmlhttp = null, from_event = 0) {
-    console.log("load_events(from_event: " + from_event + ")");
-
+function load_events(xmlhttp = null, from_event = -2) {
+    // from_event = -2: all events from last weeks inluding current, 
+    // from_event = -1: all events from last weeks excluding current, 
+    // from_event >= 0: current week only
+    // console.log("load_events(from_event: " + from_event + ")");
     if (xmlhttp === null) {
         console.log("  creating xmlhttp");
         xmlhttp = new XMLHttpRequest();
@@ -153,19 +313,17 @@ function load_events(xmlhttp = null, from_event = 0) {
         [
             "app=distribute",
             "action=ajax-read",
-            "from_event=" + window.n_ajax_events,
-            // "session_id=" + window.my_session_id,
-            // "request=" + window.n_ajax_requests++
+            "from_event=" + from_event,
         ].join("&");
-    console.log("  sending " + qs);
+    // console.log("  sending " + qs);
     xmlhttp.open("GET", "?" + qs, true);
     xmlhttp.send();
 }
 
 
 
-function process_ajax_response(text, my_session_id) {
-    const events = text.split("\n").filter(n => n); // filter: Leerzeilen entfernen
+function process_ajax_response(response, my_session_id) {
+    const events = response.split("\n").filter(n => n); // filter: Leerzeilen entfernen
     if (events.length == 0) {
         window.n_ajax_empy_responses++;
     }
@@ -173,7 +331,8 @@ function process_ajax_response(text, my_session_id) {
         window.n_ajax_empy_responses = 0;
     }
     // page_log("process_ajax_response: n events: " + n + " n_ajax_empy_responses: " + window.n_ajax_empy_responses + "\n");
-    console.log("events: " + events.length + "\n" + text);
+    // console.log("events: " + events.length + "\n" + response);
+    let i = 0;
     for (const event of events) {
         const d = JSON.parse(event);
 
@@ -184,12 +343,8 @@ function process_ajax_response(text, my_session_id) {
 
         // not here used:
         //   date: currentDateAndTimeString(),
-
         //   username: window.username,
-        //   sub_ids: sub_ids,
-
-        // unused:
-        //   request: window.n_ajax_requests++
+        //   grouporder_ids
 
         if (my_session_id === null) {
             // document.getElementById("sync-status").innerHTML = i + "/" + n;
@@ -199,8 +354,8 @@ function process_ajax_response(text, my_session_id) {
             // console.log("ignoriert: " + checkbox_id)
         } else {
             // update form elements from changes in other sessions
-            e = document.getElementById(d.element_id);
-            console.log("processing element id " + d.element_id);
+            const e = document.getElementById(d.element_id);
+            console.log("processing element " + (++i) + "/" + events.length + " id " + d.element_id);
             if (e) {
                 console.log("  element tagName: " + e.tagName + " type: " + e.type + " => " + d.value)
                 if (e.tagName == "INPUT") {
@@ -208,49 +363,12 @@ function process_ajax_response(text, my_session_id) {
                         e.checked = d.value;
                     }
                     else if (e.type == "number") {
-                        e.value = d.value.trim();
-                        console.log("  setting " + e.id + " to " + e.value); // ", onChange: ");
-
-                        /* e.onchange: "function onchange(event) {
-                            updateInput(this,0,15000); 
-                            updateTotalReceived(4430,1000, / *update_weight=* / false); 
-                            ajaxOnChange(this); }" */
-
-                        //e.dispatchEvent(new Event("change"));
-                        // cannot completely replace the following code section, because the onchange code contains more than the update..Received() function 
-
-                        let u = /updateTotalReceived\(([^()]+)\)/.exec(e.onchange);
-                        // e.g. u = "updateTotalReceived(4430,128488,1000, / *update_weight=* / false)"
-                        // neu       updateTotalReceived(182800, 1000, /*update_weight=*/ true)
-                        if (u) {
-                            let p = u[1].split(",");
-                            //console.log(p); // Array(3) [ "128440", "0", " /*update_weight=*/ true" ]
-                            let id_article = p[0];
-                            let unit_weight = parseInt(p[1]);
-                            let update_weight = true;
-                            if (p.length >= 3) update_weight = p[2].indexOf("false") < 0;
-                            // console.log("  update_weight: " + update_weight + " [" + p + "]");
-                            updateTotalReceived(id_article, unit_weight, update_weight);
-                            // updateTotalReceived(p[0], p[1], parseInt(p[2]), update_weight);
-                        }
-
-                        u = /updateReceived\(([^()]+)\)/.exec(e.onchange);
-                        if (u) {
-                            let p = u[1].split(",");
-                            //console.log(p); 
-                            // Array(3) [ "128432", "/*update_weight=*/ false", ... ]
-                            // Array [ "4430", "128431 /*update_weight=true*/ " ]
-                            let id_article = p[0];
-                            let update_weight = true;
-                            if (p.length >= 2) update_weight = p[1].indexOf("false") < 0;
-                            let group_id = null;
-                            if (p.length >= 3) group_id = p[2];
-                            updateReceived(id_article, update_weight, group_id);
-                            //updateReceived(p[0], parseInt(p[1]), update_weight);
-                        }
+                        e.value = d.value;
+                        // console.log("  setting " + e.id + " to " + e.value); // ", onChange: ");
+                        update_received(e, "ajax");
                     } else {
                         console.log("  *** unknown type: " + e.type);
-                        e.innerHTML = value.trim();
+                        // e.innerHTML = d.value.trim();
                     }
                 } else {
                     console.log("  *** unknown tagName: " + e.tagName);
@@ -259,7 +377,7 @@ function process_ajax_response(text, my_session_id) {
             else console.log("getElementById failed with " + d.element_id);
         }
         if (my_session_id) {
-            window.n_ajax_events++;
+            window.n_ajax_events += events.length;
         }
     }
     if (my_session_id == null) {
@@ -271,4 +389,14 @@ function process_ajax_response(text, my_session_id) {
 function currentDateAndTimeString() {
     const currentDate = new Date();
     return currentDate.toLocaleString();
+}
+
+function style_display(display, show_it) {
+    return display && show_it || !display && !show_it ? "" : "display:none";
+}
+
+function show_note(id, show_it) {
+    document.getElementById("note-" + id).style = style_display(true, show_it);;
+    document.getElementById("note-button-show-" + id).style = style_display(false, show_it);
+    document.getElementById("note-button-hide-" + id).style = style_display(true, show_it);
 }

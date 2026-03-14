@@ -87,20 +87,36 @@ class FoodsoftApiApp extends FoodsoftApp
     {
         $data = $this->api->getResource($this->api_url . "/users");
         $users = $data["users"];
+
+        // filter users without ordergroup
         if ($skip_users_without_ordergroup) {
             $users = array_filter($users, function ($user) {
                 return $user["ordergroup_id"] >= 0;
             });
         }
+
+        // handle users without ordergroup
+        foreach ($users as $i => $user) {
+            if (!$user["ordergroup_name"]) {
+                $users[$i]["ordergroup_name"] = "keine Bestellgruppe";
+                // print $user["name"] . ": keine Bestellgruppe<br>";
+            }
+        }
+
+        // filter inactive users
         $inactive_user = $this->config["inactive_user"] ?? "ZZ";
         $users = array_filter($users, function ($user) use ($inactive_user) {
             return $user["ordergroup_name"] && !str_contains($user["ordergroup_name"], $inactive_user);
         });
+
+        // sort users alphabetically
         array_multisort(
             array_column($users, 'name'),
             SORT_ASC,
             $users
         );
+
+
         // print "<pre>";
         // //print_r($users);
         // foreach ($users as $user) {
@@ -110,11 +126,12 @@ class FoodsoftApiApp extends FoodsoftApp
         // exit;
 
         // [id] => 251
-        // [name] => Anita Bumberger
-        // [email] => a.bumberger@gmx.net
+        // [name] => Anita B
+        // [email] => a.b@gmx.net
         // [locale] => de
-        // [ordergroup_name] => Anita Bumberger
+        // [ordergroup_name] => Anita B & Co
         // [ordergroup_id] => 217
+
         $this->users = $users;
     }
 
@@ -143,6 +160,8 @@ class FoodsoftApiApp extends FoodsoftApp
 
         array_multisort(
             array_column($this->orders, 'sort-index'),
+            SORT_ASC,
+            array_column($this->orders, 'name'),
             SORT_ASC,
             $this->orders
         );
