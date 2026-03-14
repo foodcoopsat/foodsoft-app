@@ -36,16 +36,24 @@ Bei bereits abgerechneten Bestellungen können keine Änderungen in Stückzahl o
 - Bei Artikel ohne Gewicht oder mit gesperrtem Gewicht kann nur die Stückzahl verändert werden.
 
 ## Lieferantin Eigenschaften
-Am Ende des Notiz Feldes einer Lieferantin in der Foodsoft können Einstellungen für diese eingegeben werden (JSON Format): 
+Am Ende des Notiz Feldes einer Lieferantin in der Foodsoft können Einstellungen für diese eingegeben werden (JSON Format) - es ist nur ein `@pickup` Feld pro Lieferantin möglich, daher mehrere Eigenschaften in einem Feld zusammenfassen: 
 
-`@pickup:{"setting1":value1, ...}`
+`@pickup:{"setting1":value1, "setting2":value2, ...}`
 
 Eigenschaften: 
 - `"adaptable_weights":false` wenn für alle Artikel der Lieferantin das Gewicht nicht anpassbar sein sollen
+- `"info_text":"...Text..."` Text, der am Beginn jeder Bestellung angezeigt wird, zum Beispiel, wo die Artikel zu finden sind
+- `"ordered":"...Begriff..."` Text, der anstelle von "bestellt" ausgegeben werden soll;
 
-Beispiel: 
 
-`@pickup:{"adaptable_weights":false}`
+Beispiele: 
+
+```
+@pickup:{"adaptable_weights":false}
+@pickup:{"info_text":"selber nehmen aus dem Kühlschrank."}
+@pickup:{"adaptable_weights":false, "info_text":"selber nehmen aus den Brot-Kisten."}
+@pickup:{"ordered":"eingetragen"}
+```
 
 
 

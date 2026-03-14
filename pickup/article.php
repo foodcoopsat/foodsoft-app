@@ -79,8 +79,11 @@ class Article
         // todo: implemet it ...
 
         // $app->article_state_save_method == "in-app"
-        $this->is_distributed = $this->app->articles_distributed[$this->id]["distributed"] ?? $this->is_distributed;
-        $this->is_pickedup = $this->app->articles_pickedup[$this->id]["pickedup"] ?? $this->is_pickedup;
+        $this->is_distributed = $this->app->articles_distributed[$this->id]["distributed"] ??
+            $this->is_distributed;
+        $this->is_pickedup = $this->app->articles_pickedup[$this->id]["pickedup"] ??
+            $this->is_pickedup;
+        $this->is_pickedup |= !$this->is_received(); // mark it as "done"
     }
 
     public function finalize_construct()
@@ -92,6 +95,11 @@ class Article
         $this->weight_ordered = $this->unit_weight * $this->ordered;
         $this->weight_received = round($this->unit_weight * $this->received);
         $this->reset_weight = round($this->unit_weight * $this->reset_received);
+    }
+
+    public function is_received()
+    {
+        return $this->received > 0;
     }
 
     private function set_locked_weight($tags)

@@ -82,7 +82,7 @@ class PickupApp extends FoodsoftApiApp
                     "onbeforeunload" => "return before_unload()",
                 ]);
                 $this->html_title();
-                $this->debug = TRUE;
+                //$this->debug = TRUE;
                 $this->load_article_pickup_states("current");
                 $this->html_pickup_form();
             } else {
@@ -147,8 +147,10 @@ class PickupApp extends FoodsoftApiApp
         $this->html_form_begin("submit", "check_form");
 
         print html_list([
-            "Abhaken, was du abgeholt bzw. überprüft hast. Wenn nicht anders vermerkt, " .
-            "findest du die bestellten Artikel in deinem Kistl.",
+            "Abhaken, was du abgeholt bzw. überprüft hast. "
+            //."Wenn nicht anders vermerkt, " .
+            //."findest du die bestellten Artikel in deinem Kistl."
+            ,
 
             "Gegenüber Bestellung abweichende Stückzahlen und Gewichte eingeben",
 
