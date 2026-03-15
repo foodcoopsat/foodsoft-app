@@ -55,7 +55,7 @@ class OrderPickup extends Order
             print html_tag(
                 "p",
                 ["class" => ["info", $order_class]],
-                ($this->app->show_only_received_orders ? "Bestellung" : "Lieferantin") .
+                ($this->show ? "Bestellung" : "Lieferantin") .
                 " ist noch nicht freigegeben: " .
                 "Bestellt wurde: " .
                 implode(", ", $this->article_names())
