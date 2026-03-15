@@ -48,17 +48,19 @@ class OrderPickup extends Order
             print " eingeben!</p>";
 
         }
-        if ($this->app->show_only_received_orders) {
-            if (!$this->is_received) {
-                print html_tag(
-                    "p",
-                    ["class" => ["info", $order_class]],
-                    "Bestellung ist noch nicht freigegeben. " .
-                    "Bestellt wurde: " .
-                    implode(", ", $this->article_names())
-                );
-                return;
-            }
+        if (
+            $this->app->show_only_received_orders && !$this->is_received ||
+            !$this->show
+        ) {
+            print html_tag(
+                "p",
+                ["class" => ["info", $order_class]],
+                ($this->app->show_only_received_orders ? "Bestellung" : "Lieferantin") .
+                " ist noch nicht freigegeben: " .
+                "Bestellt wurde: " .
+                implode(", ", $this->article_names())
+            );
+            return;
         }
 
         $this->html_hidden_input("producer", $this->producer);

@@ -44,7 +44,7 @@ Eigenschaften:
 - `"adaptable_weights":false` wenn für alle Artikel der Lieferantin das Gewicht nicht anpassbar sein sollen
 - `"info_text":"...Text..."` Text, der am Beginn jeder Bestellung angezeigt wird, zum Beispiel, wo die Artikel zu finden sind
 - `"ordered":"...Begriff..."` Text, der anstelle von "bestellt" ausgegeben werden soll;
-
+- `"show":false` wenn Bestellungen dieser Lieferantin generell nicht in der App angezeigt werden sollen. Stattdessen wird angezeigt: *Lieferantin noch nicht freigegeben*.
 
 Beispiele: 
 

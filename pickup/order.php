@@ -29,6 +29,7 @@ class Order
     public $is_open;
     public $is_received;
     public $is_closed;
+    public $show;
     public $date_end;
     public $date_pickup;
     public $has_pickup_date;
@@ -88,6 +89,7 @@ class Order
         $this->has_adaptable_weights = $this->parameters["adaptable_weights"] ?? !$this->is_stock_order;
         $this->info_text = $this->parameters["info_text"] ?? "";
         $this->ordered_term = $this->parameters["ordered"] ?? "bestellt";
+        $this->show = $this->parameters["show"] ?? true;
 
         $this->articles = $this->data["articles"] ?? [];
         $this->n_articles = count($this->articles);
