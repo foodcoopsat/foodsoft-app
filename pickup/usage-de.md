@@ -11,6 +11,8 @@ https://youtu.be/r9Pfzuuu6Ko
 
 Die App ist in unserer  Foodcoop seit mittlerweile 4 Jahren erfolgreich im Einsatz (Stand 2026,) mit dieser Version soll die App auch für andere FoodCoops zur Verfügung gestellt werden.
 
+Eine Demo-Version ist unter https://pickup.foodcoops.at/demo/ verfügbar. Sie ist mit der Foodsoft-Demo https://app.foodcoops.at/demo/ verknüpft.
+
 ## Voraussetzungen 
 - Foodsoft wird verwendet zum Bestellen und 
 - Abrechnung erfolgt über die Foodsoft: Mitglieder laden in der Foodsoft ihr Bestellguthaben auf, Bestellungen werden über Foodsoft abgerechnet, indem vom Guthaben der Mitglieder abgebucht wird. Bei einer manuellen Abrechnung über Papierlisten macht die App wenig Sinn.
@@ -41,10 +43,10 @@ Am Ende des Notiz Feldes einer Lieferantin in der Foodsoft können Einstellungen
 `@pickup:{"setting1":value1, "setting2":value2, ...}`
 
 Eigenschaften: 
-- `"adaptable_weights":false` wenn für alle Artikel der Lieferantin das Gewicht nicht anpassbar sein sollen
+- `"adaptable_weights":false` wenn für alle Artikel der Lieferantin das Gewicht nicht anpassbar sein soll
 - `"info_text":"...Text..."` Text, der am Beginn jeder Bestellung angezeigt wird, zum Beispiel, wo die Artikel zu finden sind
-- `"ordered":"...Begriff..."` Text, der anstelle von "bestellt" ausgegeben werden soll;
-- `"show":false` wenn Bestellungen dieser Lieferantin generell nicht in der App angezeigt werden sollen. Stattdessen wird angezeigt: *Lieferantin noch nicht freigegeben*.
+- `"ordered":"...Begriff..."` Text, der anstelle von "bestellt" ausgegeben werden soll, zum Beispiel "eingetragen", wenn die Bestellung eine Leergutrückgabe mit negativen Pfandbeträgen ist
+- `"show":false` wenn Bestellungen dieser Lieferantin generell nicht in der App angezeigt werden sollen. Stattdessen wird angezeigt: *Lieferantin noch nicht freigegeben*. Das sollte nur vorübergehend genutzt werden, zum Beispiel in der Einführungsphase der App.
 
 Beispiele: 
 
@@ -70,11 +72,42 @@ Beispiele:
 Optionen für Entwicklung: 
 - `debug`: Standardwert false;
 - `comment_level`:
-  - 0: save no order comments,
-  - 1: only article notes,
-  - 2: for all changes,
-  - Standardwert 1
+  - 0: erstelle keine Kommentare in  Foodsoft Bestellungen
+  - 1: erstelle nur Artikel-spezifische Notizen als Kommentatere in Foodsoft Bestellungen (Standard-Wert)
+  - 2: erstelle für alle Änderungen (Anzahl, Gewicht, Notizen) Kommentatere in Foodsoft Bestellungen 
 - `use_local_foodsoft`: Standardwert false
 
+## Protokoll
+
+Eine Protokollansicht zeigt die gesamten eingegebenen Änderungen aller Mitglieder. 
+
+Link Beispiele für die Demo-Version:
+- https://pickup.foodcoops.at/demo/?app=pickup&action=protocoll - chronologische Darstellung
+- https://pickup.foodcoops.at/demo/?app=pickup&action=protocoll&view=orders - Zusammengefasst nach Bestellungen
+
+Für die eigene Foodcoop in den Links `demo` durch die entsprechende Bezeichnung der eigenen Foodcoop ersetzen.
+
+
+
 # Einkistln App (distribute)
-Die Einkistln App ist zum Aufteilen der Bestellungen auf die Foodcoop Mitglieder im Lagerraum auf Tablets oder Smartphones. Bestelllisten (Artikel-PDF) müssen nicht mehr ausgedruckt werden. Abweichungen der Lieferung von der Bestellung in Stück oder Gewicht können eingegeben und in die Foodsoft übertragen werden. Es können mehrere Geräte gleichzeitig verwendet werden, alle Eingaben werden zwischen den Geräten synchronisiert.
+Die Einkistln App ist zum Aufteilen der Bestellungen auf die Foodcoop Mitglieder im Lagerraum auf Tablets oder Smartphones. Bestelllisten (Artikel-PDF) müssen nicht mehr ausgedruckt werden. Abweichungen der Lieferung von der Bestellung in Stück oder Gewicht können eingegeben und in die Foodsoft übertragen werden. Es können mehrere Geräte gleichzeitig verwendet werden, alle Eingaben werden zwischen den Geräten synchronisiert. 
+
+Die App ist noch nicht ganz fertig umgesetzt, sie kann zwar schon zum Einkistln und abhaken, was schon eingekistlt ist, auch auf mehreren Geräten gleichzeitig verwendet werden, aber Abweichungen können noch nicht in die Foodsoft übertragen werden (kommt demnächst). 
+
+
+# Lieferantin Eigenschaften
+Am Ende des Notiz Feldes einer Lieferantin in der Foodsoft können Einstellungen für diese eingegeben werden (JSON Format) - es ist nur ein `@pickup` Feld pro Lieferantin möglich, daher mehrere Eigenschaften (auch von der Abhol-App) in einem Feld zusammenfassen: 
+
+`@pickup:{"setting1":value1, "setting2":value2, ...}`
+
+Eigenschaften: 
+- `"distribute":true` Bei der Auswahl der aktuellen Bestellungen, die zum Einkistln angezeigt wird, werden Bestellungen dieser Lieferantin vorausgwählt
+- `"adaptable_weights":false` wenn für alle Artikel der Lieferantin das Gewicht nicht anpassbar sein soll
+
+Beispiele: 
+
+```
+@pickup:{"distribute":true}
+@pickup:{"adaptable_weights":false, "distribute":true}
+
+```
