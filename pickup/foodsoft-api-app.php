@@ -7,6 +7,7 @@ class FoodsoftApiApp extends FoodsoftApp
 {
     public $api = null; // for API connection
     public $api_url = "/pickup";
+    public $update_result_sum;
 
     public function needs_api()
     {
@@ -21,6 +22,7 @@ class FoodsoftApiApp extends FoodsoftApp
         if ($this->needs_api()) {
             $this->api = new ApiClient($config);
             $this->foodcoop_name = $this->api->foodcoop_name;
+            $this->update_result_sum = $config["update_result_sum"] ?? true;
         }
 
         $this->html_debug_begin();
@@ -180,6 +182,16 @@ class FoodsoftApiApp extends FoodsoftApp
 
         // print_r($this->group_orders_by_date);
         // print_r($this->group_orders_by_date_index);
+    }
+
+    public function submit_order_updates($order_id, $updates)
+    {
+        $updates["update_result_sum"] = $this->update_result_sum;
+        return $this->api->updateResource(
+            $this->api_url . "/$order_id",
+            $updates,
+            $this->debug
+        );
     }
 
     public function html_foodsoft_url($url, $text)
