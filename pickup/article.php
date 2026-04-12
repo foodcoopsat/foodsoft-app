@@ -2,7 +2,7 @@
 
 class Article
 {
-    public $app;
+    public $app = null;
     public $data;
     public $order;
     public $id;
@@ -18,6 +18,8 @@ class Article
     public $adapted_received;
     public $unit;
     public $unit_weight;
+    public $unit_volume;
+
     public $price_per_kg;
     public $weight_ordered;
     public $weight_received;
@@ -29,35 +31,42 @@ class Article
     public $locked_weight;
     public $is_pickedup;
     public $is_distributed;
+
     public $note;
+
+    public $distributed_by;
+    public $distributed_at;
+    public $distribution_note;
+
     public $text_not_received = "nicht erhalten|doch erhalten";
 
     public function __construct($order, $data)
     {
-        $this->order = $order;
-        $this->app = $order->app;
+        if ($order) { // for tests, $order can be null
+            $this->order = $order;
+            $this->app = $order->app;
+        }
         $this->data = $data;
 
-        $this->id = $data["id"];
-        $this->name = $data["name"];
+        $this->id = $data["id"] ?? null;
+        $this->name = $data["name"] ?? null;
 
-        $this->price = floatval($data["price"]);
-        $this->price_str = $this->app->local_currency_str($this->price);
+        $this->price = floatval($data["price"] ?? "0");
+        $this->price_str = $this->app ? $this->app->local_currency_str($this->price) : sprintf("%.2f €", $this->price);
         $this->deposit = floatval($data["deposit"] ?? "0");
 
         $this->set_unit_weight($data["unit"]);
-        $this->has_variable_weight = str_contains(
-            $this->name . $this->unit,
-            $this->app->variable_weight_tag
-        );
-        $this->set_locked_weight($this->app->locked_weight_tags);
-        $this->has_adaptable_weight =
-            $this->has_weight &&
-            $this->order->has_adaptable_weights &&
-            !$this->has_locked_weight;
+        $this->set_unit_volume($data["unit"]);
+        $this->set_locked_weight($this->app->locked_weight_tags ?? []);
+        if ($order) { // for tests, $order can be null
+            $this->has_adaptable_weight =
+                $this->has_weight &&
+                $this->order->has_adaptable_weights &&
+                !$this->has_locked_weight;
 
-        $this->note = $order->article_comments[$this->id] ??
-            $this->app->article_notes[$this->id] ?? "";
+            $this->note = $order->article_comments[$this->id] ??
+                $this->app->article_notes[$this->id] ?? "";
+        }
     }
 
 
@@ -70,8 +79,8 @@ class Article
         // use tolerance to save pickup information
         $tolerance_db = $this->tolerance;
         $this->tolerance = $tolerance_db % 1000;
-        $this->is_distributed = intdiv($tolerance_db, $this->app->base_distribution) % 10;
-        $this->is_pickedup = intdiv($tolerance_db, $this->app->base_pickedup) % 10;
+        $this->is_distributed = intdiv($tolerance_db, $this->app->base_distribution) % 10 == 1;
+        $this->is_pickedup = intdiv($tolerance_db, $this->app->base_pickedup) % 10 == 1;
 
 
         // $app->article_state_save_method ==  "foodsoft-db-article-state"
@@ -81,6 +90,15 @@ class Article
         // $app->article_state_save_method == "in-app"
         $this->is_distributed = $this->app->articles_distributed[$this->id]["distributed"] ??
             $this->is_distributed;
+        $this->distributed_by = $this->app->articles_distributed[$this->id]["by"] ?? "?";
+        if ($date = $this->app->articles_distributed[$this->id]["date"] ?? "") {
+            $dt = DateTime::createFromFormat('j.n.Y, H:i:s', $date);
+            $this->distributed_at = $dt->format('j.n. \u\m H:i');
+        } else {
+            $this->distributed_at = "?";
+        }
+        $this->distribution_note = $this->app->article_distribution_notes[$this->id] ?? "";
+
         $this->is_pickedup = $this->app->articles_pickedup[$this->id]["pickedup"] ??
             $this->is_pickedup;
         $this->is_pickedup |= !$this->is_received(); // mark it as "done"
@@ -123,12 +141,33 @@ class Article
         } elseif (preg_match('/(\d+(?:[.,]\d+)?)\s*g\b/i', $unit, $m)) {
             // 250 g => 250
             $this->unit_weight = floatval(str_replace(',', '.', $m[1]));
+        } elseif (strtolower(trim($unit)) == "kg") {
+            $this->unit_weight = 1000;
         } else {
             $this->unit_weight = 0;
         }
         // printf("[%.0f g]", $this->unit_weight);
         if ($this->has_weight = ($this->unit_weight > 0))
             $this->price_per_kg = $this->price / $this->unit_weight * 1000;
+    }
+
+    private function set_unit_volume($unit)
+    {
+        // set unit volume (volume of one article entity) in ml from foodsoft unit-string
+        // e.g. "250 ml"=> 250 (ml)
+
+        if (preg_match('/(\d+(?:[.,]\d+)?)\s*ml\b/i', $unit, $m)) {
+            // 250 ml => 250
+            $this->unit_volume = floatval(str_replace(',', '.', $m[1]));
+        } elseif (
+            preg_match('/(\d+(?:[.,]\d+)?)\s*[lL]\b/i', $unit, $m) ||
+            preg_match('/(\d+(?:[.,]\d+)?)\s*Liter\b/i', $unit, $m)
+        ) {
+            // 1 L => 1000
+            $this->unit_volume = 1000 * floatval(str_replace(',', '.', $m[1]));
+        } else {
+            $this->unit_volume = 0;
+        }
     }
 
     public function var_name($var)
@@ -152,34 +191,42 @@ class Article
         $this->html_hidden_input("article_name", $this->name);
     }
 
-    public function html_note($button, $text)
+    public function html_note($button, $text, $ajax_onchange = false, $for_balancing = false)
     {
         // $text = "Hinweis zur Abrechnung:";
+        $id = $this->id;
+        if ($for_balancing) {
+            $id = "balancing-$id";
+        }
         if ($this->order->state == "closed")
             $text .= " (Änderungen in erhaltener Menge können nicht mehr " .
                 "berücksichtigt werden, weil die Bestellung bereits abgerechnet ist!)";
         print html_button(
             $button, // "Notiz eingeben"
-            "note-button-show-$this->id",
-            "show_note($this->id, true)"
+            "note-button-show-$id",
+            "show_note('$id', true)"
         );
         print html_tag(
             "span",
-            ["id" => "note-$this->id", "style" => "display:none"],
+            ["id" => "note-$id", "style" => "display:none"],
             html_tag("span", ["class" => "info"], $text) .
             "<br>" .
             html_tag("textarea", [
                 "type" => "text",
-                "id" => "note-textarea-$this->id",
-                "name" => $this->var_name("note"),
+                "id" => "note-textarea-$id",
+                "name" => $this->var_name($for_balancing ? "note_balancing" : "note"),
                 "rows" => 3,
                 "cols" => 28,
+                "data-order-id" => $this->order->id,
+                "data-article-name" => $this->name,
+                "data-id" => $id,
+                "onchange" => $ajax_onchange ? "ajaxOnChange(this);" : "",
             ], $this->note) .
             "<br>" .
             html_button(
                 'Notiz verbergen',
-                "note-button-hide-$this->id",
-                "show_note($this->id, false)"
+                "note-button-hide-$id",
+                "show_note('$id', false)"
             )
         );
         $this->html_hidden_input("note_initial", $this->note);
@@ -206,4 +253,3 @@ class Article
         // print '</span>';
     }
 }
-?>
