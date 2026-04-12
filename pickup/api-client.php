@@ -151,7 +151,9 @@ class ApiClient
         $response = curl_exec($curl);
         // curl_close($curl);
 
-        //print_r($response);
+        // print "<pre>";
+        // print_r($response);
+        // exit();
 
         if ($response === false) {
             echo "Failed";
@@ -159,6 +161,22 @@ class ApiClient
             return;
         }
         $response = json_decode($response);
+
+        // print "<pre>";
+        // print_r($response);
+        // exit();
+
+        // stdClass Object
+        // (
+        //     [access_token] => jFs9zwN2a0yy6NcHO6AVjQSCUHemYz97lIU7ngh5JRg
+        //     [token_type] => Bearer
+        //     [expires_in] => 7200
+        //     [refresh_token] => lId99bYxUEH7j7jhhZtsxtab-tIxi_ycOf8K8wPGjok
+        //     [scope] => user:read finance:user
+        //     [created_at] => 1774484555
+        // )
+
+
         if ($response->error ?? false) {
             print $response->error . "\n";
             print $response->error_description . "\n";
@@ -216,6 +234,9 @@ class ApiClient
                     print "Sonst wird automatisch ein neuer Token angefordert.\n";
                     exit();
                 }
+                // invalid token: get new token
+                $this->getAuthorizationCode();
+                exit;
             } else {
                 // valid token and response
                 if ($this->debug) {
@@ -227,10 +248,6 @@ class ApiClient
                 return $response;
             }
         }
-
-        // invalid token: get new token
-        $this->getAuthorizationCode();
-        exit;
     }
 
     public function updateResource(string $api_url, array $updates, $debug = FALSE)

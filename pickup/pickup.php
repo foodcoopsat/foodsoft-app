@@ -56,7 +56,6 @@ class PickupApp extends FoodsoftApiApp
         // print "</pre>";
 
         $this->variable_weight_tag = $this->config["variable_weight"] ?? "*";
-        $this->locked_weight_tags = $this->config["locked_weight"] ?? ["#", "Glas"];
 
         if ($this->action == "protocoll") {
             $this->title = "Protokoll Abholen";
@@ -73,7 +72,15 @@ class PickupApp extends FoodsoftApiApp
 
         if ($this->action == "") {
             if ($this->has_current_user_ordergroup()) {
+
+                // load data
                 $this->login_user = $this->post["login_user"] ?? $this->username;
+                $this->credit = $this->get_foodsoft_credit();
+                $this->get_foodsoft_group_orders($this->was_ordergroup_selected ? $this->ordergroup_id : null);
+                $this->load_article_distribution();
+                $this->load_article_pickup_states("current");
+
+                // html output
                 $this->html_header([
                     "../pickup.js",
                     "../input.js",
@@ -82,8 +89,6 @@ class PickupApp extends FoodsoftApiApp
                     "onbeforeunload" => "return before_unload()",
                 ]);
                 $this->html_title();
-                //$this->debug = TRUE;
-                $this->load_article_pickup_states("current");
                 $this->html_pickup_form();
             } else {
                 $this->html_header();
@@ -186,12 +191,11 @@ class PickupApp extends FoodsoftApiApp
 
         if (!$this->was_ordergroup_selected) {
             print "Verfügbares Guthaben: " .
-                $this->local_currency_str($this->get_foodsoft_credit());
+                $this->local_currency_str($this->credit);
         }
         print "</p>";
 
         // print "was_ordergroup_selected: " . ($this->was_ordergroup_selected ? "true" : "false") . "<br>";
-        $this->get_foodsoft_group_orders($this->was_ordergroup_selected ? $this->ordergroup_id : null);
         foreach ($this->orders_by_date as $date_str => $order_indices) {
             $date_index = $this->orders_by_date_index[$date_str];
             print html_tag(
@@ -338,14 +342,7 @@ class PickupApp extends FoodsoftApiApp
 
     }
 
-    public function submit_order_updates($order_id, $updates)
-    {
-        return $this->api->updateResource(
-            $this->api_url . "/$order_id",
-            $updates,
-            $this->debug
-        );
-    }
+
 
 
     // ==== protocoll =========================================================
