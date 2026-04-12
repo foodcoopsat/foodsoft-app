@@ -29,7 +29,10 @@ class FoodsoftApp
     public $article_state_save_method = "in-app"; // "foodsoft-db-tolerance", "foodsoft-db-article-state", "in-app"
     public $articles_pickedup = [];
     public $articles_distributed = [];
+    public $articles_distribution_received = [];
+    public $article_distribution_notes = [];
     public $article_notes = [];
+    public $locked_weight_tags;
     public $base_distribution = 10000;
     public $base_pickedup = 1000;
     public $protocoll_dir = "protocolls";
@@ -58,10 +61,14 @@ class FoodsoftApp
         $this->foodcoop_name = $config["foodcoop_name"] ?? ucfirst($this->foodcoop_dirname);
 
         $this->config = $config;
+
         $this->decimal_separator = $config["decimal_separator"] ?? ",";
         $this->user_str_separator = $config["user_str_separator"] ?? "|";
+        $this->locked_weight_tags = $config["locked_weight"] ?? ["#", "Glas"];
+
         $this->time_now = $config["time_now"] ?? "today"; // today: time = 00:00:00, needed for days_ago() to give correct result (wrong: "now")
         $this->n_weeks = $this->config["n_weeks"] ?? 5;
+
         $this->debug = $config["debug"] ?? false;
 
 
@@ -111,7 +118,7 @@ class FoodsoftApp
                 [
                     "../styles/normalize.css",
                     "../styles/fonts.css",
-                    "../styles/global.css",
+                    "../styles/global.css?v=1",
                 ],
                 [
                     "rel" => "stylesheet",
@@ -322,6 +329,54 @@ class FoodsoftApp
         }
     }
 
+    public function load_article_distribution()
+    {
+        $distribution_notes = [];
+        foreach ($this->load_data("distribute", "protocolls") as $entry) {
+            // entry: "element_id":"checkbox-2621305","value":true
+            if ($element_id = $entry["element_id"] ?? null) {
+                $items = explode("-", $element_id);
+                $id = end($items);
+
+                if ($items[0] == "checkbox") {
+                    $this->articles_distributed[$id]["distributed"] = $entry["value"] ?? false;
+                    $this->add_distribution_username_and_date($id, $entry);
+                } elseif ($items[0] == "input") {
+                    if ($items[1] == "received_grouporder" && key_exists("value", $entry)) {
+                        // "input-received_grouporder-2628725","value":61
+                        $this->articles_distribution_received[$id] = $entry["value"];
+                    } elseif ($items[1] == "weight_received_grouporder" && key_exists("received", $entry)) {
+                        // "input-weight_received_grouporder-2629198","value":520,"received":1.04
+                        $this->articles_distribution_received[$id] = $entry["received"];
+                    }
+                } elseif ($items[0] == "note" && $items[1] == "textarea") {
+                    // note-textarea-218962
+                    // note-textarea-grouporder-2619460
+                    if ($items[2] == "grouporder") {
+                        $distribution_notes[$id][] = $entry["value"];
+                        $this->add_distribution_username_and_date($id, $entry);
+                    } elseif ($items[2] == "balancing") {
+                        // ignore note for balancing
+                    } elseif (key_exists("groupoder_ids", $entry)) { // "grouporder_ids":[2628990,2629779,2630037]
+                        foreach ($entry["groupoder_ids"] as $id) {
+                            $distribution_notes[$id][] = $entry["value"];
+                            $this->add_distribution_username_and_date($id, $entry);
+                        }
+                    }
+                }
+            }
+        }
+        foreach ($distribution_notes as $id => $notes) {
+            $this->article_distribution_notes[$id] = implode(" ", $notes);
+        }
+    }
+
+    private function add_distribution_username_and_date($id, $entry)
+    {
+        $this->articles_distributed[$id]["by"] = $entry["username"] ?? "unknown";
+        $this->articles_distributed[$id]["date"] = $entry["date"] ?? "unknown";
+    }
+
     public function has_current_user_ordergroup()
     {
         return $this->ordergroup_id != -1 && $this->ordergroup_id !== null;
@@ -411,7 +466,7 @@ class FoodsoftApp
         return $this->save_data($this->protocoll_dir, $protocoll_data);
     }
 
-    public function load_data($app_name, $dir, $include_ordergroup)
+    public function load_data($app_name, $dir, $include_ordergroup = "none")
     {
         $this->html_debug_begin();
 
@@ -461,6 +516,7 @@ class FoodsoftApp
         }
         // print_r($this->protocoll);
         $this->html_debug_end();
+        return $this->protocoll;
     }
     public function load_protocoll($week = 0, $start_index = 0)
     {
@@ -518,7 +574,6 @@ class FoodsoftApp
         $sort_values = array_column($this->table, $sort_by);
         $sort_order = $order == "desc" ? SORT_DESC : SORT_ASC;
         array_multisort($sort_values, $sort_order, $this->table);
-
     }
 
 
@@ -664,7 +719,6 @@ class FoodsoftApp
         return $this->date_str($datetime) . " " .
             $this->date_diff_str($days_in_past);
     }
-
 }
 
 
@@ -678,6 +732,16 @@ function weight_str($weight)
     return str_replace(".", ",", $s);
 }
 
+function volume_str($volume)
+{
+    if ($volume >= 1000) {
+        $s = sprintf("%g Liter", $volume / 1000);
+    } else {
+        $s = sprintf("%.0f ml", $volume);
+    }
+    return str_replace(".", ",", $s);
+}
+
 function unit_str($unit)
 {
     if (strpos($unit, "St") === 0) {
@@ -686,4 +750,3 @@ function unit_str($unit)
         return " x " . $unit;
     }
 }
-?>
