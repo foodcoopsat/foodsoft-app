@@ -37,6 +37,9 @@ $test_units = [
     "ca. 1 kg" => 1000,
     "ca. 1kg pro Stueck" => 1000,
     "ca. 1 kg pro Stueck" => 1000,
+    "Stk (Kilopreis)" => 1000,
+    "Pkg (Kilopreis)" => 1000,
+    "1Stk./Kilopreis" => 1000,
     "1.2kgs" => 0,
     "1.2kg" => 1200,
     "1.2 kg" => 1200,
@@ -48,6 +51,7 @@ $test_units = [
     "ca.1,2kg" => 1200,
     "ca. 1,2kg" => 1200,
     "ca. 1,2 kg" => 1200,
+
 ];
 
 print "<pre>";

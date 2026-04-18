@@ -135,13 +135,14 @@ class Article
         // set unit weight (weight of one article entity) in gram from foodsoft unit-string
         // e.g. "Stück <1,3 kg"=> 1300 (g)
         $this->unit = $unit;
+        $unit_lc = strtolower(trim($unit));
         if (preg_match('/(\d+(?:[.,]\d+)?)\s*kg\b/i', $unit, $m)) {
             // 2,5 kg => 2500
             $this->unit_weight = 1000 * floatval(str_replace(',', '.', $m[1]));
         } elseif (preg_match('/(\d+(?:[.,]\d+)?)\s*g\b/i', $unit, $m)) {
             // 250 g => 250
             $this->unit_weight = floatval(str_replace(',', '.', $m[1]));
-        } elseif (strtolower(trim($unit)) == "kg") {
+        } elseif ($unit_lc == "kg" || str_contains($unit_lc, "kilopreis")) {
             $this->unit_weight = 1000;
         } else {
             $this->unit_weight = 0;
