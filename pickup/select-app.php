@@ -4,6 +4,18 @@ $icon = "pickup2";
 require_once "foodsoft-app.php";
 $app = new FoodsoftApp($config);
 $foodcoop = $app->foodcoop_name;
+
+$apps = [];
+$apps["pickup"] = "Meine Bestellungen abholen";
+if ($config["distribute_app"] ?? true) {
+  $apps["distribute"] = "Einkistln";
+}
+
+$options = "";
+foreach ($apps as $app => $app_description) {
+  $options .= "<option value='$app'>$app_description</option>";
+}
+
 ?>
 
 <!DOCTYPE html>
@@ -54,8 +66,7 @@ $foodcoop = $app->foodcoop_name;
         <div class="field-box">
           <label for="action">Aktion</label>
           <select name="app" id="app" style="width:100%;">
-            <option value="pickup">Meine Bestellungen abholen</option>
-            <option value="distribute">Einkistln</option>
+            <?= $options ?>
           </select>
         </div>
         <br>
