@@ -48,6 +48,7 @@ class OrderPickup extends Order
             print " eingeben!</p>";
 
         }
+
         if (
             $this->app->show_only_received_orders && !$this->is_received ||
             !$this->show

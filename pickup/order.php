@@ -21,6 +21,7 @@ class Order
     public $ordered_term;
     public $info_text;
     public $has_adaptable_weights;
+    public $show_volume;
 
     public $articles;
     public $n_articles;
@@ -87,6 +88,7 @@ class Order
         $items = explode("@pickup:", $this->producer_notes);
         $this->parameters = count($items) == 2 ? json_decode($items[1], true) : [];
         $this->has_adaptable_weights = $this->parameters["adaptable_weights"] ?? !$this->is_stock_order;
+        $this->show_volume = $this->parameters["show_volume"] ?? true;
         $this->info_text = $this->parameters["info_text"] ?? "";
         $this->ordered_term = $this->parameters["ordered"] ?? "bestellt";
         $this->show = $this->parameters["show"] ?? true;
@@ -126,6 +128,10 @@ class Order
     public function var_name($var)
     {
         return $var . "[" . $this->id . "]";
+    }
+    public function heading_id()
+    {
+        return "order-$this->id";
     }
     public function html_hidden_input($varname, $value)
     {

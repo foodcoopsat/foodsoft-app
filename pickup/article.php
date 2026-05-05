@@ -93,7 +93,7 @@ class Article
         $this->distributed_by = $this->app->articles_distributed[$this->id]["by"] ?? "?";
         if ($date = $this->app->articles_distributed[$this->id]["date"] ?? "") {
             $dt = DateTime::createFromFormat('j.n.Y, H:i:s', $date);
-            $this->distributed_at = $dt->format('j.n. \u\m H:i');
+            $this->distributed_at = ($dt !== false ? $dt->format('j.n. \u\m H:i') : "?");
         } else {
             $this->distributed_at = "?";
         }

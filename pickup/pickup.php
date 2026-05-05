@@ -72,8 +72,9 @@ class PickupApp extends FoodsoftApiApp
 
         if ($this->action == "") {
             if ($this->has_current_user_ordergroup()) {
+                // has_current_user_ordergroup is also true if user has no ordergroup but an ordergroup was selected
 
-                // load data
+                // load data before html output to enable token refresh
                 $this->login_user = $this->post["login_user"] ?? $this->username;
                 $this->credit = $this->get_foodsoft_credit();
                 $this->get_foodsoft_group_orders($this->was_ordergroup_selected ? $this->ordergroup_id : null);

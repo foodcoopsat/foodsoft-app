@@ -9,6 +9,10 @@ class ArticlePickup extends Article
         $this->tolerance = intval($data["tolerance"]);
         $this->received = floatval($data["received"]);
         $this->set_state();
+        $this->has_variable_weight = str_contains(
+            $this->name . $this->unit,
+            $this->app->variable_weight_tag
+        );
         $this->finalize_construct();
     }
 
@@ -25,12 +29,6 @@ class ArticlePickup extends Article
             $classes[] = "week2+";
         if ($this->order->state == "closed")
             $classes[] = "closed";
-        // print '<p ' .
-        //     ' class="' . implode(" ", $classes) . '" ' .
-        //     ' id="p-article-' . $this->id . '"' .
-        //     ' data-order-id="' . $this->order->id . '" ' .
-        //     ' data-pickup-date-index="' . $this->order->pickup_date_index . '" ' .
-        //     '>'; {
         print html_tag("p", [
             "class" => $classes,
             "id" => "p-article-" . $this->id,
@@ -49,6 +47,8 @@ class ArticlePickup extends Article
             print "<br>\n";
 
             $this->html_note("Notiz eingeben", "Hinweis zur Abrechnung:");
+
+            $this->html_distributed();
 
             $this->html_hidden_input("order_article_ids[" . $this->order->id . "][]", "ID");
             if ($this->is_distributed)
@@ -121,6 +121,8 @@ class ArticlePickup extends Article
         $this->html_hidden_input("tolerance", $this->tolerance);
         if ($this->unit_weight > 0) {
             $this->html_hidden_input("weight_ordered", $this->weight_ordered);
+        } elseif ($this->unit_volume && $this->order->show_volume) {
+            printf(" (%s)", volume_str($this->ordered * $this->unit_volume));
         }
     }
 
@@ -187,7 +189,9 @@ class ArticlePickup extends Article
 
     private function html_weight_input($style = "")
     {
-        print "<span style='$style' id='weight-adaption-" . $this->id . "'>";
+        if ($style) {
+            print "<span style='$style' id='weight-adaption-" . $this->id . "'>";
+        }
         print "Gewicht erhalten: ";
         $input = new form_input(); # Gewichtsabweichung
         $input->set_name($this->var_name("weight_received"));
@@ -205,13 +209,6 @@ class ArticlePickup extends Article
         if ($this->ordered > 1 && $this->has_variable_weight) {
 
             print "<br>";
-
-            //print '<span id="weight-separated-' . $this->id . '">';
-            // print '<button type="button"
-            //         onclick="show_individual_weight_inputs(' . $this->id . ',' . $this->ordered . ')">' .
-            //     'Gewicht für jedes Stück extra eingeben</button><br></span>' . "\n";
-
-            //print html_tag("span", [ "id"=>"weight-separated-$this->id"]); 
             print html_button(
                 "Gewicht für jedes Stück extra eingeben",
                 "weight-separated-$this->id",
@@ -219,12 +216,6 @@ class ArticlePickup extends Article
             );
             for ($i = 0; $i < $this->ordered; $i++) {
                 $idnr = $this->id . "-$i";
-                // print "<span id='single-weight-$idnr' style='display: none'>" .
-                //     "Gewicht Stück " . ($i + 1) . ": " .
-                //     "<input class='weight' type='text' name='single_weight[" . $this->id . "][$i]' " .
-                //     " id='weight-$idnr' size='2' onChange='calculate_sum(" . $this->id . "," . $this->ordered . ")'>
-                //     Gramm" .
-                //     "<br></span>\n";
                 print html_tag(
                     "span",
                     [
@@ -243,6 +234,9 @@ class ArticlePickup extends Article
                 );
             }
         }
+        if ($style) {
+            print "</span>";
+        }
     }
 
     private function html_number_input()
@@ -260,6 +254,28 @@ class ArticlePickup extends Article
         $input->print();
     }
 
-
+    private function html_distributed()
+    {
+        if ($this->is_distributed) {
+            print "<br>" . html_tag(
+                "i",
+                [],
+                html_symbol("kistl.png", "baseline", 14) . " " .
+                "Eingekistlt" .
+                " von " . $this->distributed_by .
+                " am " . $this->distributed_at .
+                ($this->distribution_note ? " Hinweis: " . $this->distribution_note : "")
+            );
+        } elseif ($this->distribution_note) {
+            print "<br>" . html_tag(
+                "i",
+                [],
+                "Hinweis vom Einkistln" .
+                " von " . $this->distributed_by .
+                " am " . $this->distributed_at . ": " .
+                $this->distribution_note
+            );
+        }
+    }
 }
 ?>
