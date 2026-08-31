@@ -118,7 +118,7 @@ class FoodsoftApp
                 [
                     "../styles/normalize.css",
                     "../styles/fonts.css",
-                    "../styles/global.css?v=1",
+                    "../styles/global.css?v=2",
                 ],
                 [
                     "rel" => "stylesheet",

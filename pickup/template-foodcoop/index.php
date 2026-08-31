@@ -10,6 +10,8 @@ $config = [
     "client_id" => "",
     "client_secret" => "",
 
+    // flag to display order comments as popover in pickup order view
+    "show_order_comments" => false,
     "exclude_usernames" => [
         "Bestellungen",
         "admin"
