@@ -12,6 +12,15 @@ function html_hidden_input($name, $value)
     );
 }
 
+function info_icon()
+{
+    return "<svg width='16' height='16' viewBox='0 0 16 16' aria-hidden='true'>" .
+        "<circle cx='8' cy='8' r='7' fill='none' stroke='currentColor' stroke-width='1.5'/>" .
+        "<circle cx='8' cy='4.6' r='1' fill='currentColor'/>" .
+        "<rect x='7.25' y='7' width='1.5' height='5' fill='currentColor'/>" .
+        "</svg>";
+}
+
 function html_button($text, $id, $on_click, $visible = true, $attributes = [])
 {
     return html_tag(
@@ -46,6 +55,25 @@ function html_checkbox($name, $value, $id, $onchange = "", $large = false, $chec
         "onchange" => $onchange,
         $checked ? "checked" : ""
     ]);
+}
+
+function linkify_contacts($text)
+{
+    $text = htmlspecialchars($text, ENT_QUOTES, "UTF-8");
+
+    $pattern = '/[\w.+-]+@[\w-]+\.[\w.-]+|\+?\d[\d\s\/.()-]{5,}\d/';
+
+    return preg_replace_callback($pattern, function ($m) {
+        $match = $m[0];
+        if (str_contains($match, "@")) {
+            return "<a href='mailto:$match'>$match</a>";
+        }
+        $digits = preg_replace('/\D/', '', $match);
+        if (strlen($digits) < 9) // avoid linking short digit runs like dates
+            return $match;
+        $tel = preg_replace('/[^\d+]/', '', $match);
+        return "<a href='tel:$tel'>$match</a>";
+    }, $text);
 }
 
 function html_list($items, $ordered = false)

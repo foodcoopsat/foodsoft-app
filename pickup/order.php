@@ -26,6 +26,7 @@ class Order
     public $articles;
     public $n_articles;
     public $article_comments;
+    public $order_comments;
     public $state;
     public $is_open;
     public $is_received;
@@ -97,8 +98,22 @@ class Order
         $this->n_articles = count($this->articles);
 
         $this->article_comments = [];
+        $this->order_comments = [];
+
+        // uncomment for testing
+        // $data["comments"] = [["order_comment" => ["text" => "a long comment about whatever 0680123132123 with phone and email user@foodcoop.at"]], ["order_comment" => ["text" => "another comment"]], ["order_comment"=> ["text" => '@pickup:{"info_text": "some info text about order"}']]];
         foreach ($data["comments"] ?? [] as $comment) {
             foreach (explode("\n", $comment["order_comment"]["text"]) as $comment_line) {
+                $items = explode("@pickup:", $comment_line);
+                $params = count($items) == 2 ? json_decode($items[1], true) : [];
+                if (isset($params['info_text'])) {
+                    $this->info_text .= $params['info_text'];
+                } elseif ($this->app->show_order_comments) {
+                    $order_comment = trim($comment_line);
+                    if ($order_comment !== "") {
+                        $this->order_comments[] = $order_comment;
+                    }
+                }
 
                 // --- begin remove
                 $items = explode("#", $comment_line);

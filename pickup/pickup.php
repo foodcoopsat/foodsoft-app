@@ -5,8 +5,6 @@ require_once("article-pickup.php");
 require_once("order-submit.php");
 require_once("article-submit.php");
 
-
-
 class PickupApp extends FoodsoftApiApp
 {
 
@@ -41,6 +39,7 @@ class PickupApp extends FoodsoftApiApp
         "single_weights" => "Einzelgewichte",
         "note" => "Notiz"
     ];
+    public $show_order_comments = false;
 
     public function needs_api()
     {
@@ -51,6 +50,7 @@ class PickupApp extends FoodsoftApiApp
     {
         parent::__construct($config);
         $this->show_only_received_orders = $config["show_only_received_orders"] ?? false;
+        $this->show_order_comments = $config["show_order_comments"] ?? false;
         // print "<pre>pickup::construct config:";
         // print_r($config);
         // print "</pre>";

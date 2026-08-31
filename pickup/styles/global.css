@@ -93,6 +93,47 @@ ul li {
   font-style: italic;
 }
 
+.order {
+  position: relative; /* anchor for the comment popover and info icon */
+}
+
+.order.has-info-icon {
+  padding-left: 23px; /* room for the absolutely positioned info icon (16px + 7px gap) */
+}
+
+.info-icon {
+  position: absolute;
+  left: 0;
+  top: 60%;
+  transform: translateY(-50%);
+  cursor: pointer;
+}
+
+.comment-popover {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 10;
+  background: white;
+  color: black;
+  font-style: normal;
+  font-family: Ubuntu, sans-serif;
+  font-weight: 300;
+  border: 1px solid #999;
+  border-radius: 4px;
+  padding: 8px 12px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  width: 80vw;
+  max-width: 500px;
+}
+
+.comment-popover ul {
+  list-style: none;
+  margin: 0;
+  padding-left: 0;
+}
+
 .past-order {
   display: none;
 }
