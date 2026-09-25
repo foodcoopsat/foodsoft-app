@@ -164,6 +164,21 @@ function set_class(element, class_name, set_it) {
         element.classList.remove(class_name);
 }
 
+function toggle_comment_popover(order_id) {
+    var popover = document.getElementById('comment-popover-' + order_id);
+    var is_open = popover.style.display === 'block';
+    document.querySelectorAll('.comment-popover').forEach(function (el) {
+        el.style.display = 'none';
+    });
+    popover.style.display = is_open ? 'none' : 'block';
+}
+
+document.addEventListener('click', function () {
+    document.querySelectorAll('.comment-popover').forEach(function (el) {
+        el.style.display = 'none';
+    });
+});
+
 
 
 

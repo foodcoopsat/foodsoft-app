@@ -28,7 +28,23 @@ class OrderPickup extends Order
     function html()
     {
         $order_class = "order-" . $this->id;
-        print "<h3 class='order $order_class'>" . $this->producer . "</h3>";
+
+        $comment_popover_html = "";
+        $has_comments = $this->app->show_order_comments && ([] !== $this->order_comments);
+        if ($has_comments) {
+            $comment_popover_html =
+                "<span class='info-icon' tabindex='0' " .
+                "onclick='event.stopPropagation(); toggle_comment_popover(\"$this->id\")' " .
+                "title='Kommentare zur Bestellung'>" .
+                info_icon() .
+                "</span>" .
+                "<div class='comment-popover' id='comment-popover-$this->id'>" .
+                html_list(array_map('linkify_contacts', $this->order_comments)) .
+                "</div>";
+        }
+
+        $order_classes = "order $order_class" . ($has_comments ? " has-info-icon" : "");
+        print "<h3 class='$order_classes'>$comment_popover_html" . $this->producer . "</h3>";
         // print "<p>Status: $this->state, " .
         //     ($this->is_received ? "received" : "not received") . "," .
         //     ($this->app->show_only_received_orders ? "show only received" : "show all") .
