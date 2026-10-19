@@ -31,8 +31,10 @@ class Article
     public $weight_received_total;
     public $reset_weight;
     public $has_weight;
-    public $has_variable_weight;
+    public $has_variable_weight = null;
     public $has_adaptable_weight;
+    public $has_variable_volume;
+    public $has_adaptable_volume;
     public $has_locked_weight;
     public $locked_weight;
     public $is_pickedup;
@@ -61,19 +63,63 @@ class Article
         $this->price_str = $this->app ? $this->app->local_currency_str($this->price) : sprintf("%.2f €", $this->price);
         $this->deposit = floatval($data["deposit"] ?? "0");
 
-        $this->set_unit_weight($data["unit"]);
-        $this->set_unit_volume($data["unit"]);
+        // set unit_weight/volume from unit text field (pre foodsoft 5.0)
+        // keep this to handle migrated but not converted articles
+        $this->set_unit_weight($data["unit"]); // $this->unit_weight = 0 if no unit found
+        $this->set_unit_volume($data["unit"]); // $this->unit_volume = 0 if no unit found
         $this->set_locked_weight($this->app->locked_weight_tags ?? []);
-        if ($order) { // for tests, $order can be null
+        $has_custom_unit = $data["unit"] && $this->unit_weight == 0 && $this->unit_volume == 0;
+        $has_weight_or_vol_unit_in_unit_textfield = $data["unit"] && ($this->unit_weight || $this->unit_volume);
+        $unit_text_parts = [$data["unit"]]; // may contain custom unit text
+
+        // unit system foodsoft 5.0+ used
+        $unit = $data["unit_group_order"] ?? null;
+        $this->unit_weight = $data["grams_per_ordered_unit"] ?? $this->unit_weight;
+        $this->unit_volume = $data["milliliter_per_ordered_unit"] ?? $this->unit_volume;
+        $unit_text_parts[] = $data["unit_group_order_name"] ?? "";
+        if (!$has_weight_or_vol_unit_in_unit_textfield) {
+            if ($unit && (is_weight_unit($unit) || is_volume_unit($unit))) {
+                array_splice($unit_text_parts, -1, 0, ['1']); // add "1" before "kg" etc.    
+            } elseif ($this->unit_weight) {
+                if ($this->unit_weight < 1000)
+                    $unit_text_parts[] = sprintf(" %.0f g", $this->unit_weight);
+                else
+                    $unit_text_parts[] = sprintf(" %g kg", $this->unit_weight / 1000);
+            } elseif ($this->unit_volume) {
+                $unit_text_parts[] = sprintf(" %.0f ml", $this->unit_volume);
+            }
+        }
+        $this->unit = implode(" ", array_filter($unit_text_parts));
+
+        if ($this->has_weight = ($this->unit_weight > 0)) {
+            $this->price_per_kg = $this->price / $this->unit_weight * 1000;
+        }
+
+
+        if (($data["unit_billing"] ?? null) || $has_custom_unit) {
+            $this->has_adaptable_weight =
+                $this->unit_weight > 0 && is_weight_unit($data["unit_billing"]);
+            $this->has_variable_weight =
+                !is_weight_unit($data["unit_group_order"]) && is_weight_unit($data["unit_billing"]);
+            // Bestellung nach Stück/Packung/... aber Abrechnung nach Gewicht
+
+            $this->has_adaptable_volume =
+                $this->unit_volume > 0 && is_volume_unit($data["unit_billing"]);
+        } else {
             $this->has_adaptable_weight =
                 $this->has_weight &&
-                $this->order->has_adaptable_weights &&
+                ($order ? $this->order->has_adaptable_weights : true) && // for tests, $order can be null
                 !$this->has_locked_weight;
+            // $this->has_variable_weight is set in article-pickup
+        }
 
+        if ($order) {
             $this->note = $order->article_comments[$this->id] ??
                 $this->app->article_notes[$this->id] ?? "";
         }
     }
+
+
 
 
     public function set_state()
@@ -132,8 +178,9 @@ class Article
     private function set_locked_weight($tags)
     {
         $this->has_locked_weight = FALSE;
+        $look_for_lock_tags_in = $this->name . $this->unit;
         foreach ($tags as $tag) {
-            if (str_contains($this->unit, $tag)) {
+            if (str_contains($look_for_lock_tags_in, $tag)) {
                 $this->has_locked_weight = TRUE;
                 return;
             }
@@ -141,42 +188,43 @@ class Article
     }
     private function set_unit_weight($unit)
     {
-        // set unit weight (weight of one article entity) in gram from foodsoft unit-string
-        // e.g. "Stück <1,3 kg"=> 1300 (g)
-        $this->unit = $unit;
-        $unit_lc = strtolower(trim($unit));
-        if (preg_match('/(\d+(?:[.,]\d+)?)\s*kg\b/i', $unit, $m)) {
-            // 2,5 kg => 2500
-            $this->unit_weight = 1000 * floatval(str_replace(',', '.', $m[1]));
-        } elseif (preg_match('/(\d+(?:[.,]\d+)?)\s*g\b/i', $unit, $m)) {
-            // 250 g => 250
-            $this->unit_weight = floatval(str_replace(',', '.', $m[1]));
-        } elseif ($unit_lc == "kg" || str_contains($unit_lc, "kilopreis")) {
-            $this->unit_weight = 1000;
-        } else {
-            $this->unit_weight = 0;
+        $this->unit_weight = 0;
+        if ($unit) {
+            // set unit weight (weight of one article entity) in gram from foodsoft unit-string
+            // e.g. "Stück <1,3 kg"=> 1300 (g)
+            $unit_lc = strtolower(trim($unit));
+            if (preg_match('/(\d+(?:[.,]\d+)?)\s*kg\b/i', $unit, $m)) {
+                // 2,5 kg => 2500
+                $this->unit_weight = 1000 * floatval(str_replace(',', '.', $m[1]));
+            } elseif (preg_match('/(\d+(?:[.,]\d+)?)\s*g\b/i', $unit, $m)) {
+                // 250 g => 250
+                $this->unit_weight = floatval(str_replace(',', '.', $m[1]));
+            } elseif ($unit_lc == "kg" || str_contains($unit_lc, "kilopreis")) {
+                $this->unit_weight = 1000;
+            }
         }
         // printf("[%.0f g]", $this->unit_weight);
-        if ($this->has_weight = ($this->unit_weight > 0))
-            $this->price_per_kg = $this->price / $this->unit_weight * 1000;
+        // if ($this->has_weight = ($this->unit_weight > 0))
+        //     $this->price_per_kg = $this->price / $this->unit_weight * 1000;
     }
 
     private function set_unit_volume($unit)
     {
-        // set unit volume (volume of one article entity) in ml from foodsoft unit-string
-        // e.g. "250 ml"=> 250 (ml)
+        $this->unit_volume = 0;
+        if ($unit) {
+            // set unit volume (volume of one article entity) in ml from foodsoft unit-string
+            // e.g. "250 ml"=> 250 (ml)
 
-        if (preg_match('/(\d+(?:[.,]\d+)?)\s*ml\b/i', $unit, $m)) {
-            // 250 ml => 250
-            $this->unit_volume = floatval(str_replace(',', '.', $m[1]));
-        } elseif (
-            preg_match('/(\d+(?:[.,]\d+)?)\s*[lL]\b/i', $unit, $m) ||
-            preg_match('/(\d+(?:[.,]\d+)?)\s*Liter\b/i', $unit, $m)
-        ) {
-            // 1 L => 1000
-            $this->unit_volume = 1000 * floatval(str_replace(',', '.', $m[1]));
-        } else {
-            $this->unit_volume = 0;
+            if (preg_match('/(\d+(?:[.,]\d+)?)\s*ml\b/i', $unit, $m)) {
+                // 250 ml => 250
+                $this->unit_volume = floatval(str_replace(',', '.', $m[1]));
+            } elseif (
+                preg_match('/(\d+(?:[.,]\d+)?)\s*[lL]\b/i', $unit, $m) ||
+                preg_match('/(\d+(?:[.,]\d+)?)\s*Liter\b/i', $unit, $m)
+            ) {
+                // 1 L => 1000
+                $this->unit_volume = 1000 * floatval(str_replace(',', '.', $m[1]));
+            }
         }
     }
 
@@ -263,3 +311,15 @@ class Article
         // print '</span>';
     }
 }
+
+
+function is_weight_unit($unit)
+{
+    return in_array($unit, ["KGM", "HGM", "DJ", "GRM"]);
+}
+function is_volume_unit($unit)
+{
+    return in_array($unit, ["LTR", "DLT", "CLT", "MLT"]);
+}
+
+
