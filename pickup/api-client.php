@@ -31,7 +31,8 @@ class ApiClient
         $this->authorize_url = $foodsoft_url . "/oauth/authorize";
         $this->token_url = $foodsoft_url . "/oauth/token";
         $this->callback_uri = $this->http . $_SERVER["HTTP_HOST"] . $_SERVER["REQUEST_URI"];
-        $this->base_api_url = $foodsoft_url . "/api/v1";
+        //$this->base_api_url = $foodsoft_url . "/api/v1";
+        $this->base_api_url = $foodsoft_url . "/api/" . $config["api_version"];
 
         $this->client_id = $config["client_id"];
         $this->client_secret = $config["client_secret"];
@@ -219,7 +220,12 @@ class ApiClient
                 print "Abbruch!\n";
                 exit();
             }
-        } else {
+        } elseif (is_string($response) && str_contains($response, "Error")) {
+            print ($response);
+        } else { // expect $response to be valid json string
+            // print "<pre style='background-color: #EEE;'>\n";
+            // var_dump($response);
+            // print "</pre>";
             // print "response:\n$response";
             $response = json_decode($response, true);
             // print ("response: ");
