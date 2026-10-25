@@ -14,8 +14,8 @@ class ArticlePickup extends Article
     public function __construct($order, $data)
     {
         parent::__construct($order, $data);
-        $this->ordered = intval($data["ordered"]);
-        $this->tolerance = intval($data["tolerance"]);
+        $this->ordered = floatval($data["ordered"]);
+        $this->tolerance = floatval($data["tolerance"]);
         $this->received = floatval($data["received"]);
 
         $this->grouporder_article_id = $data["grouporder_article_id"] ?? null; # 216734
@@ -27,10 +27,12 @@ class ArticlePickup extends Article
             : [];
 
         $this->set_state();
-        $this->has_variable_weight = str_contains(
-            $this->name . $this->unit,
-            $this->app->variable_weight_tag
-        );
+        if ($this->has_variable_weight === null) {
+            $this->has_variable_weight = str_contains(
+                $this->name . $this->unit,
+                $this->app->variable_weight_tag
+            );
+        }
 
         $this->finalize_construct(); // set weights, ...
 
@@ -189,7 +191,12 @@ class ArticlePickup extends Article
             if ($this->adapted_received)
                 print "erhalten: " . $this->received;
             print "<br>";
-            print "Gewicht bestellt: " . $this->weight_ordered . " Gramm<br>";
+            print "Gewicht bestellt: ";
+            if ($this->weight_ordered >= 1000)
+                printf("%g kg<br>", $this->weight_ordered / 1000);
+            else
+                print $this->weight_ordered . " Gramm<br>";
+
             $this->html_weight_input();
         } else {
             $this->html_number_input();
@@ -238,14 +245,17 @@ class ArticlePickup extends Article
         $input->set_name($this->var_name("weight_received"));
         $input->set_init_value($this->weight_received);
         $input->set_data_attribute("weight-ordered", $this->weight_ordered);
-        $input->set_max_value($this->weight_ordered * 5);
-        $input->add_class("weight unit");
+        $input->set_max_value(max($this->weight_ordered, $this->weight_received) * 5);
+        $input->add_class("weight");
+        $input->add_class("unit");
         $input->set_update_function("update_weight($this->id)");
         $input->set_null_button($this->text_not_received, $this->reset_weight);
         $input->set_article_name(sprintf("%s", $this->name));
         //$input->set_buttons_on_both_sides();
         $input->print();
 
+        // print "<br>ordered " . $this->ordered .
+        //     ", has_variable_weight: " . ($this->has_variable_weight ? "true" : "false") . "<br>";
 
         if ($this->ordered > 1 && $this->has_variable_weight) {
 

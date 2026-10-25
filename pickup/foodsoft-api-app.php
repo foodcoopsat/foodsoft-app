@@ -7,6 +7,7 @@ class FoodsoftApiApp extends FoodsoftApp
 {
     public $api = null; // for API connection
     public $api_url = "/pickup";
+    private $api_version = "v1"; //  foodsoft < 5.0 ? "v1" : "v2"
     public $update_result_sum;
 
     public function needs_api()
@@ -20,6 +21,7 @@ class FoodsoftApiApp extends FoodsoftApp
         parent::__construct($config);
 
         if ($this->needs_api()) {
+            $config["api_version"] = $this->api_version;
             $this->api = new ApiClient($config);
             $this->foodcoop_name = $this->api->foodcoop_name;
             $this->update_result_sum = $config["update_result_sum"] ?? true;

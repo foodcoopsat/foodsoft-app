@@ -119,7 +119,7 @@ class FoodsoftApp
                 [
                     "../styles/normalize.css",
                     "../styles/fonts.css",
-                    "../styles/global.css?v=6",
+                    "../styles/global.css?v=2",
                 ],
                 [
                     "rel" => "stylesheet",
@@ -634,8 +634,13 @@ class FoodsoftApp
 
     public function local_currency_str($amount, $plus_sign = false)
     {
+        $digits = 2;
+        $log10 = log10($amount);
+        if ($log10 < -1)
+            $digits = -floor($log10) + 1;
+        $format = "%" . sprintf(".%df €", $digits);
         return ($plus_sign && $amount > 0 ? "+" : "") .
-            $this->loc_floatstr(sprintf("%.2f €", $amount));
+            $this->loc_floatstr(sprintf($format, $amount));
     }
 
 
