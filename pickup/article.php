@@ -98,13 +98,13 @@ class Article
 
         if (($data["unit_billing"] ?? null) || $has_custom_unit) {
             $this->has_adaptable_weight =
-                $this->unit_weight > 0 && is_weight_unit($data["unit_billing"]);
+                $this->unit_weight > 0 && is_weight_unit($data["unit_billing"] ?? "");
             $this->has_variable_weight =
-                !is_weight_unit($data["unit_group_order"]) && is_weight_unit($data["unit_billing"]);
+                !is_weight_unit($data["unit_group_order"] ?? "") && is_weight_unit($data["unit_billing"] ?? "");
             // Bestellung nach Stück/Packung/... aber Abrechnung nach Gewicht
 
             $this->has_adaptable_volume =
-                $this->unit_volume > 0 && is_volume_unit($data["unit_billing"]);
+                $this->unit_volume > 0 && is_volume_unit($data["unit_billing"] ?? "");
         } else {
             $this->has_adaptable_weight =
                 $this->has_weight &&
