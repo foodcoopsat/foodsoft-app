@@ -15,8 +15,8 @@ class ArticleDistribute extends Article
         foreach ($data["grouporders"] as $grouporder) {
             $go = [
                 "name" => $grouporder["ordergroup_name"],
-                "ordered" => intval($grouporder["ordered"]),
-                "tolerance" => intval($grouporder["tolerance"]),
+                "ordered" => floatval($grouporder["ordered"]),
+                "tolerance" => floatval($grouporder["tolerance"]),
                 "received" => floatval($grouporder["received"])
             ];
             // replace the next 5 lines if status is obtained directly
