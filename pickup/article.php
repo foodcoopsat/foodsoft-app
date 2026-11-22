@@ -67,8 +67,7 @@ class Article
         // keep this to handle migrated but not converted articles
         $this->set_unit_weight($data["unit"]); // $this->unit_weight = 0 if no unit found
         $this->set_unit_volume($data["unit"]); // $this->unit_volume = 0 if no unit found
-        $this->set_locked_weight($this->app->locked_weight_tags ?? []);
-        $has_custom_unit = $data["unit"] && $this->unit_weight == 0 && $this->unit_volume == 0;
+        $this->set_locked_weight($this->app->locked_weight_tags ?? [], $data["unit"]);
         $has_weight_or_vol_unit_in_unit_textfield = $data["unit"] && ($this->unit_weight || $this->unit_volume);
         $unit_text_parts = [$data["unit"]]; // may contain custom unit text
 
@@ -90,17 +89,20 @@ class Article
             }
         }
         $this->unit = implode(" ", array_filter($unit_text_parts));
+        $order_allows_adaptable_weights = $order ? $this->order->has_adaptable_weights : true; // for tests, $order can be null
 
         if ($this->has_weight = ($this->unit_weight > 0)) {
             $this->price_per_kg = $this->price / $this->unit_weight * 1000;
         }
 
 
-        if (($data["unit_billing"] ?? null) || $has_custom_unit) {
+        if ($data["unit_billing"] ?? null) {
             $this->has_adaptable_weight =
-                $this->unit_weight > 0 && is_weight_unit($data["unit_billing"] ?? "");
+                $this->unit_weight > 0 && is_weight_unit($data["unit_billing"]) &&
+                $order_allows_adaptable_weights &&
+                !$this->has_locked_weight;
             $this->has_variable_weight =
-                !is_weight_unit($data["unit_group_order"] ?? "") && is_weight_unit($data["unit_billing"] ?? "");
+                !is_weight_unit($data["unit_group_order"] ?? "") && is_weight_unit($data["unit_billing"]);
             // Bestellung nach Stück/Packung/... aber Abrechnung nach Gewicht
 
             $this->has_adaptable_volume =
@@ -108,9 +110,9 @@ class Article
         } else {
             $this->has_adaptable_weight =
                 $this->has_weight &&
-                ($order ? $this->order->has_adaptable_weights : true) && // for tests, $order can be null
+                $order_allows_adaptable_weights &&
                 !$this->has_locked_weight;
-            // $this->has_variable_weight is set in article-pickup
+            // $this->has_variable_weight is set in article-pickup (variable_weight_tag)
         }
 
         if ($order) {
@@ -129,7 +131,7 @@ class Article
 
         // $app->article_state_save_method == "foodsoft-db-tolerance"
         // use tolerance to save pickup information
-        $tolerance_db = $this->tolerance;
+        $tolerance_db = intval($this->tolerance);
         $this->tolerance = $tolerance_db % 1000;
         $this->is_distributed = intdiv($tolerance_db, $this->app->base_distribution) % 10 == 1;
         $this->is_pickedup = intdiv($tolerance_db, $this->app->base_pickedup) % 10 == 1;
@@ -175,10 +177,10 @@ class Article
         return $this->received > 0;
     }
 
-    private function set_locked_weight($tags)
+    private function set_locked_weight($tags, $unit)
     {
         $this->has_locked_weight = FALSE;
-        $look_for_lock_tags_in = $this->name . $this->unit;
+        $look_for_lock_tags_in = $this->name . $unit;
         foreach ($tags as $tag) {
             if (str_contains($look_for_lock_tags_in, $tag)) {
                 $this->has_locked_weight = TRUE;

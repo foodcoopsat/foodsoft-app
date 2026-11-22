@@ -254,15 +254,16 @@ class ArticlePickup extends Article
         // print "<br>ordered " . $this->ordered .
         //     ", has_variable_weight: " . ($this->has_variable_weight ? "true" : "false") . "<br>";
 
-        if ($this->ordered > 1 && $this->has_variable_weight) {
+        if ($this->ordered > 1 && $this->has_variable_weight && $this->ordered == floor($this->ordered)) {
+            $ordered_int = intval($this->ordered);
 
             print "<br>";
             print html_button(
                 "Gewicht für jedes Stück extra eingeben",
                 "weight-separated-$this->id",
-                "show_individual_weight_inputs($this->id, $this->ordered)"
+                "show_individual_weight_inputs($this->id, $ordered_int)"
             );
-            for ($i = 0; $i < $this->ordered; $i++) {
+            for ($i = 0; $i < $ordered_int; $i++) {
                 $idnr = $this->id . "-$i";
                 print html_tag(
                     "span",
@@ -277,7 +278,7 @@ class ArticlePickup extends Article
                         "name" => "single_weight[" . $this->id . "][$i]",
                         "id" => "weight-$idnr",
                         "size" => "2",
-                        "onChange" => "calculate_sum($this->id,$this->ordered)",
+                        "onChange" => "calculate_sum($this->id,$ordered_int)",
                     ]) . " Gramm<br>"
                 );
             }

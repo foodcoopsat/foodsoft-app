@@ -220,7 +220,8 @@ class ApiClient
                 print "Abbruch!\n";
                 exit();
             }
-        } elseif (is_string($response) && str_contains($response, "Error")) {
+        } elseif (json_decode($response) === null && str_contains($response, "Error")) {
+            // non-json error
             print ($response);
         } else { // expect $response to be valid json string
             // print "<pre style='background-color: #EEE;'>\n";
