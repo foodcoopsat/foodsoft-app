@@ -238,7 +238,7 @@ class ArticlePickup extends Article
         $input->set_name($this->var_name("weight_received"));
         $input->set_init_value($this->weight_received);
         $input->set_data_attribute("weight-ordered", $this->weight_ordered);
-        $input->set_max_value($this->weight_ordered * 5);
+        $input->set_max_value(max($this->weight_ordered, $this->weight_received) * 5);
         $input->add_class("weight unit");
         $input->set_update_function("update_weight($this->id)");
         $input->set_null_button($this->text_not_received, $this->reset_weight);
